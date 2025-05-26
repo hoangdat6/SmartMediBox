@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CabinetStatus, TimeOfDay, StatusData } from '@/types';
-import { subscribeToData, updateData, pushData } from '@/services/mockDataService';
+import { subscribeToData, updateData, pushData } from '@/services/firebaseService'; // Changed from mockDataService
 
 interface FirebaseDataResult {
   cabinetStatus: CabinetStatus | null;

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 
 export interface DataPoint {
-  timestamp: number;
+  timestamp: number;  // Use numeric timestamp for realtime data
   temperature: number;
   humidity: number;
   isTemperatureAnomaly?: boolean;

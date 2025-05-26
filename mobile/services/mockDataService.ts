@@ -1,4 +1,3 @@
-
 // Import mock data from a static file
 const mockData = {
   status: {
@@ -25,48 +24,43 @@ const mockData = {
     },
     autoControl: {
       enabled: true
-    }
+    },
+    lastUpdated: "2025-05-21T10:34:00"
   },
 
   history: {
-    "2025-05-21": {
-      "10:00": {
-        temperature: 28.7,
-        humidity: 60.5
-      },
-      "12:00": {
-        temperature: 29.3,
-        humidity: 61.0,
-        cabinetOpened: "trua"
-      }
+    "2025-05-21T10:00:00": {
+      temperature: 28.7,
+      humidity: 60.5
     },
-    "2025-05-20": {
-      "07:00": {
-        temperature: 27.5,
-        humidity: 58.0,
-        cabinetOpened: "sang"
-      },
-      "12:00": {
-        temperature: 29.0,
-        humidity: 59.5,
-        cabinetOpened: "trua"
-      },
-      "19:00": {
-        temperature: 28.0,
-        humidity: 62.0,
-        cabinetOpened: "toi"
-      }
+    "2025-05-21T12:00:00": {
+      temperature: 29.3,
+      humidity: 61.0,
+      cabinetOpened: "trua"
     },
-    "2025-05-19": {
-      "07:00": {
-        temperature: 26.5,
-        humidity: 57.0,
-        cabinetOpened: "sang"
-      },
-      "19:00": {
-        temperature: 27.0,
-        humidity: 58.5
-      }
+    "2025-05-20T07:00:00": {
+      temperature: 27.5,
+      humidity: 58.0,
+      cabinetOpened: "sang"
+    },
+    "2025-05-20T12:00:00": {
+      temperature: 29.0,
+      humidity: 59.5,
+      cabinetOpened: "trua"
+    },
+    "2025-05-20T19:00:00": {
+      temperature: 28.0,
+      humidity: 62.0,
+      cabinetOpened: "toi"
+    },
+    "2025-05-19T07:00:00": {
+      temperature: 26.5,
+      humidity: 57.0,
+      cabinetOpened: "sang"
+    },
+    "2025-05-19T19:00:00": {
+      temperature: 27.0,
+      humidity: 58.5
     }
   },
 

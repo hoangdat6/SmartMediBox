@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { NotificationMap } from '@/types';
-import { getData, removeData } from '@/services/mockDataService';
+import { getData, removeData } from '@/services/firebaseService'; // Changed from mockDataService
 
 interface NotificationsStore {
   notifications: NotificationMap | null;

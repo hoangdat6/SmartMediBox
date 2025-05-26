@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { format, subHours } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { 
   VictoryLine, 
   VictoryChart, 
@@ -14,6 +14,16 @@ import {
 import { Header } from '@/components/Header';
 import { useTheme } from '@/context/ThemeContext';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
+
+// Function to format date from ISO string for display
+const formatDateTime = (isoString: string): string => {
+  try {
+    return format(parseISO(isoString), 'HH:mm:ss');
+  } catch (e) {
+    console.error("Error formatting date:", e);
+    return isoString;
+  }
+};
 
 export default function MonitorScreen() {
   const { colors, theme } = useTheme();
@@ -100,7 +110,7 @@ export default function MonitorScreen() {
     return [Math.max(0, min - padding), max + padding];
   };
   
-  // Format data for Victory charts with better handling
+  // Format data for Victory charts with better handling for ISO timestamps
   const formatChartData = (dataKey: 'temperature' | 'humidity') => {
     if (!filteredData.length) return [];
     

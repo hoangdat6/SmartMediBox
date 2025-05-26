@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Settings } from '@/types';
-import { getData, updateData } from '@/services/mockDataService';
+import { getData, updateData } from '@/services/firebaseService'; // Changed from mockDataService
 
 interface SettingsStore {
   settings: Settings | null;
