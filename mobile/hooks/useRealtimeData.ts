@@ -13,8 +13,8 @@ interface UseRealtimeDataResult {
   realtimeData: DataPoint[];
   currentTemperature: number | null;
   currentHumidity: number | null;
-  temperatureAnomaly: boolean;
-  humidityAnomaly: boolean;
+  isCurrentTemperatureAnomaly: boolean;
+  isCurrentHumidityAnomaly: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -44,8 +44,8 @@ export const useRealtimeData = (timeWindow: number = 3600000): UseRealtimeDataRe
   const [realtimeData, setRealtimeData] = useState<DataPoint[]>([]);
   const [currentTemperature, setCurrentTemperature] = useState<number | null>(null);
   const [currentHumidity, setCurrentHumidity] = useState<number | null>(null);
-  const [temperatureAnomaly, setTemperatureAnomaly] = useState<boolean>(false);
-  const [humidityAnomaly, setHumidityAnomaly] = useState<boolean>(false);
+  const [isCurrentTemperatureAnomaly, setIsCurrentTemperatureAnomaly] = useState<boolean>(false);
+  const [isCurrentHumidityAnomaly, setIsCurrentHumidityAnomaly] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,8 +101,8 @@ export const useRealtimeData = (timeWindow: number = 3600000): UseRealtimeDataRe
           const latest = dataWithAnomalies[dataWithAnomalies.length - 1];
           setCurrentTemperature(latest.temperature);
           setCurrentHumidity(latest.humidity);
-          setTemperatureAnomaly(!!latest.isTemperatureAnomaly);
-          setHumidityAnomaly(!!latest.isHumidityAnomaly);
+          setIsCurrentTemperatureAnomaly(!!latest.isTemperatureAnomaly);
+          setIsCurrentHumidityAnomaly(!!latest.isHumidityAnomaly);
         }
       } catch (err) {
         console.error("Error generating data:", err);
@@ -156,8 +156,8 @@ export const useRealtimeData = (timeWindow: number = 3600000): UseRealtimeDataRe
         // Update current values
         setCurrentTemperature(newPoint.temperature);
         setCurrentHumidity(newPoint.humidity);
-        setTemperatureAnomaly(tempAnomaly);
-        setHumidityAnomaly(humidityAnomaly);
+        setIsCurrentTemperatureAnomaly(tempAnomaly);
+        setIsCurrentHumidityAnomaly(humidityAnomaly);
       } catch (err) {
         console.error("Error updating data:", err);
       }
@@ -170,8 +170,8 @@ export const useRealtimeData = (timeWindow: number = 3600000): UseRealtimeDataRe
     realtimeData,
     currentTemperature,
     currentHumidity,
-    temperatureAnomaly,
-    humidityAnomaly,
+    isCurrentTemperatureAnomaly,
+    isCurrentHumidityAnomaly,
     loading,
     error
   };
