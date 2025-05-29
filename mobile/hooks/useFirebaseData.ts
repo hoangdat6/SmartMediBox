@@ -42,7 +42,16 @@ export function useFirebaseData(): FirebaseDataResult {
 					);
 					setTemperatureData(data.temperature || 0);
 					setHumidityData(data.humidity || 0);
-					setFanStatus(data.offlinefan || false);
+					// Fix fan status handling to prevent undefined values
+					const onlineFanStatus =
+						typeof data.onlinefan === "boolean"
+							? data.onlinefan
+							: false;
+					const offlineFanStatus =
+						typeof data.offlinefan === "boolean"
+							? data.offlinefan
+							: false;
+					setFanStatus(onlineFanStatus || offlineFanStatus);
 				}
 				setLoading(false);
 			} catch (err: any) {

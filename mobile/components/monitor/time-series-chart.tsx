@@ -232,14 +232,19 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	};
 
 	// Add data labels to points with abnormal indication
-	const labeledData = data.map((point) => {
-		const abnormal = isAbnormalValue(point.y, point);
-		return {
-			...point,
-			label: formatLabel(point),
-			abnormal, // Add this flag for styling
-		};
-	});
+	const labeledData = data
+		.filter(
+			(point) =>
+				point.y !== undefined && point.y !== null && !isNaN(point.y)
+		)
+		.map((point) => {
+			const abnormal = isAbnormalValue(point.y, point);
+			return {
+				...point,
+				label: formatLabel(point),
+				abnormal, // Add this flag for styling
+			};
+		});
 
 	// Fixed y-axis chart
 	const yAxisChart = (
@@ -344,7 +349,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
 			{/* Main data line */}
 			<VictoryLine
-				data={data}
+				data={data.filter(
+					(point) =>
+						point.y !== undefined &&
+						point.y !== null &&
+						!isNaN(point.y)
+				)}
 				x="x"
 				y="y"
 				interpolation="monotoneX"
@@ -379,10 +389,22 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 						labels: chartStyles.scatter.labels,
 					}}
 					size={5}
-					labels={({ datum }) => datum.label}
+					labels={({ datum }) =>
+						datum &&
+						datum.y !== undefined &&
+						datum.y !== null &&
+						!isNaN(datum.y)
+							? datum.label
+							: null
+					}
 					labelComponent={
 						<VictoryTooltip
-							active={true}
+							active={({ datum }) =>
+								datum &&
+								datum.y !== undefined &&
+								datum.y !== null &&
+								!isNaN(datum.y)
+							}
 							flyoutStyle={({ datum }) => ({
 								stroke: datum.abnormal ? "#FF0000" : color,
 								strokeWidth: datum.abnormal ? 2 : 1,
@@ -404,6 +426,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 								fontWeight: "normal",
 								lineHeight: 1.2,
 							}}
+							// Add a constraint to ensure flyout renders only with valid coordinates
+							constrainToVisibleArea={true}
 						/>
 					}
 				/>

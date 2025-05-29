@@ -227,12 +227,17 @@ export default function HistoryScreen() {
 		if (!historyData || !historyData[selectedDate]) return [];
 
 		// Extract timepoints and values for selected date and mode
-		const data = Object.entries(historyData[selectedDate]).map(
-			([time, values]) => {
+		const data = Object.entries(historyData[selectedDate])
+			.map(([time, values]) => {
 				const value =
 					displayMode === "temperature"
 						? values.temperature
 						: values.humidity;
+
+				// Skip invalid values
+				if (value === undefined || value === null || isNaN(value)) {
+					return null;
+				}
 
 				// Include threshold values from history data
 				return {
@@ -241,8 +246,8 @@ export default function HistoryScreen() {
 					temperatureThreshold: values.temperatureThreshold,
 					humidityThreshold: values.humidityThreshold,
 				};
-			}
-		);
+			})
+			.filter((item) => item !== null) as TimeSeriesDataPoint[]; // Filter out null items and type assertion
 
 		// Sort by time including milliseconds - ensure we're using a proper time comparison
 		const sortedData = data.sort((a, b) => {
@@ -277,7 +282,7 @@ export default function HistoryScreen() {
 
 		// Log the number of data points we're displaying
 		console.log(
-			`Displaying ${recentData.length} of ${sortedData.length} data points for ${selectedDate}`
+			`Processed ${recentData.length} data points for ${selectedDate}`
 		);
 
 		return recentData;
