@@ -69,8 +69,13 @@ export default function HistoryScreen() {
 						? values.temperature
 						: values.humidity;
 
-				// Return data point with properly formatted time
-				return { x: time, y: value };
+				// Include threshold values from history data
+				return {
+					x: time,
+					y: value,
+					temperatureThreshold: values.temperatureThreshold,
+					humidityThreshold: values.humidityThreshold,
+				};
 			}
 		);
 

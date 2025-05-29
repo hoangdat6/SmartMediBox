@@ -14,6 +14,8 @@ import {
 export interface TimeSeriesDataPoint {
 	x: string | number; // Can be time string or numeric value
 	y: number;
+	temperatureThreshold?: number; // Add threshold properties to each data point
+	humidityThreshold?: number;
 }
 
 interface TimeSeriesChartProps {
@@ -161,7 +163,21 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	};
 
 	// Check if a value is abnormal (exceeds threshold)
-	const isAbnormalValue = (value: number): boolean => {
+	const isAbnormalValue = (
+		value: number,
+		dataPoint?: TimeSeriesDataPoint
+	): boolean => {
+		// First check thresholds in the data point itself
+		if (dataPoint) {
+			if (dataType === "temperature" && dataPoint.temperatureThreshold) {
+				return value >= dataPoint.temperatureThreshold;
+			}
+			if (dataType === "humidity" && dataPoint.humidityThreshold) {
+				return value >= dataPoint.humidityThreshold;
+			}
+		}
+
+		// Fallback to thresholds from props
 		if (!thresholds) return false;
 
 		if (dataType === "temperature" && thresholds.temperature) {
@@ -174,18 +190,20 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	};
 
 	// Format y-value for display with abnormal indication
-	const formatDataValue = (y: number) => {
+	const formatDataValue = (y: number, dataPoint?: TimeSeriesDataPoint) => {
 		const baseValue =
 			y.toFixed(1) + (dataType === "temperature" ? "°C" : "%");
-		return isAbnormalValue(y) ? `${baseValue} (bất thường)` : baseValue;
+		return isAbnormalValue(y, dataPoint)
+			? `${baseValue} (bất thường)`
+			: baseValue;
 	};
 
 	// Add data labels to points with abnormal indication
 	const labeledData = data.map((point) => {
-		const abnormal = isAbnormalValue(point.y);
+		const abnormal = isAbnormalValue(point.y, point);
 		return {
 			...point,
-			label: formatDataValue(point.y),
+			label: formatDataValue(point.y, point),
 			abnormal, // Add this flag for styling
 		};
 	});

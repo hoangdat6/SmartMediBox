@@ -76,11 +76,12 @@ export function useFirebaseData(): FirebaseDataResult {
 				};
 			});
 
-			// Log the opening event
-			await pushData("logs", {
-				event: "manual_open",
+			// Log the opening event with timestamp as key
+			const timestamp = new Date().toISOString();
+			await pushData(`logs/${timestamp}`, {
+				event: "open",
 				cabinet: timeOfDay,
-				timestamp: new Date().toISOString(),
+				timestamp: timestamp,
 			});
 
 			return true;
@@ -111,11 +112,12 @@ export function useFirebaseData(): FirebaseDataResult {
 				};
 			});
 
-			// Log the closing event
-			await pushData("logs", {
-				event: "manual_close",
+			// Log the closing event with timestamp as key
+			const timestamp = new Date().toISOString();
+			await pushData(`logs/${timestamp}`, {
+				event: "close",
 				cabinet: timeOfDay,
-				timestamp: new Date().toISOString(),
+				timestamp: timestamp,
 			});
 
 			return true;
@@ -134,10 +136,11 @@ export function useFirebaseData(): FirebaseDataResult {
 			// Update local state immediately for responsiveness
 			setFanStatus(status);
 
-			// Log the fan event
-			await pushData("logs", {
+			// Log the fan event with timestamp as key
+			const timestamp = new Date().toISOString();
+			await pushData(`logs/${timestamp}`, {
 				event: status ? "fan_on" : "fan_off",
-				timestamp: new Date().toISOString(),
+				timestamp: timestamp,
 			});
 
 			return true;
