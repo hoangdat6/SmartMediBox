@@ -65,7 +65,7 @@ export const useRealtimeData = (timeWindow: number = 3600000): UseRealtimeDataRe
           // Add small random variations
           baseTemp += (Math.random() - 0.5) * 0.2;
           baseHumidity += (Math.random() - 0.5) * 0.3;
-          
+            
           // Add an anomaly in temperature around point 20
           const tempValue = i === 20 ? baseTemp + 5 : baseTemp;
           // Add an anomaly in humidity around point 10
