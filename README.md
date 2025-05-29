@@ -32,17 +32,17 @@ SmartMediBox addresses the critical challenge of medication adherence by providi
 
 ## Hardware Connection Diagram
 
-| Device        | Function                    | ESP8266 Connection                   | Notes                               |
-| ------------- | --------------------------- | ------------------------------------ | ----------------------------------- |
-| Push Button   | Send open signal            | D3 (GPIO0)                           | Uses attachInterrupt()              |
-| DS3231        | Real-time clock             | SDA → D2 (GPIO4)<br>SCL → D1 (GPIO5) | I2C protocol, shared with LCD       |
-| 16x2 I2C LCD  | Display time and alerts     | SDA → D2 (GPIO4)<br>SCL → D1 (GPIO5) | I2C protocol                        |
-| Morning Servo | Open morning compartment    | D5 (GPIO14)                          | PWM control                         |
-| Noon Servo    | Open noon compartment       | D6 (GPIO12)                          | PWM control                         |
-| Evening Servo | Open evening compartment    | D7 (GPIO13)                          | PWM control                         |
-| DHT11         | Temperature/humidity sensor | D0 (GPIO16)                          | Digital read                        |
-| Mini Fan      | Reduce humidity             | D8 (GPIO15)                          | Controlled via NPN transistor       |
-| Buzzer        | Sound alerts                | A0                                   | Via transistor if high power needed |
+| **Thiết bị**         | **Chức năng**               | **Kết nối với ESP8266**                         | **Ghi chú**                                                                 |
+|----------------------|-----------------------------|--------------------------------------------------|-----------------------------------------------------------------------------|
+| Nút nhấn mở cửa      | Gửi tín hiệu mở ngăn thuốc  | D6 (GPIO12)                                      | Dùng `attachInterrupt()` để xử lý ngắt                                     |
+| DS3231               | Đồng hồ thời gian thực      | SDA → D2 (GPIO4) SCL → D1 (GPIO5)                | Giao tiếp I2C, dùng chung với LCD                                          |
+| LCD 16x2 I2C         | Hiển thị giờ, thông báo     | SDA → D2 (GPIO4) SCL → D1 (GPIO5)                | Giao tiếp I2C                                                               |
+| Servo ngăn sáng      | Mở nắp ngăn sáng            | D4 (GPIO16)                                      | Dùng PWM                                                                    |
+| Servo ngăn trưa      | Mở nắp ngăn trưa            | D3 (GPIO0)                                       | Dùng PWM                                                                    |
+| Servo ngăn tối       | Mở nắp ngăn tối             | D7 (GPIO13)                                      | Dùng PWM                                                                    |
+| DHT11                | Đo nhiệt độ, độ ẩm          | D5 (GPIO14)                                      |                                                                             |
+| Quạt hút ẩm mini     | Hút ẩm nếu độ ẩm cao        | D8 (GPIO15)                                      | Điều khiển qua transistor NPN                                              |
+| Loa (buzzer/amp)     | Báo hiệu, nhạc              | D0                                               | Qua transistor/mạch khuếch đại nếu dùng loa công suất lớn                 |
 
 ## Technologies Used
 

@@ -142,6 +142,7 @@ open SmartMediBox.xcworkspace
 | Quạt hút ẩm mini     | Hút ẩm nếu độ ẩm cao        | D8 (GPIO15)                                      | Điều khiển qua transistor NPN                                              |
 | Loa (buzzer/amp)     | Báo hiệu, nhạc              | D0                                               | Qua transistor/mạch khuếch đại nếu dùng loa công suất lớn                 |
 
+![alt text](sodomach.png)
 
 **Chi Tiết Kết Nối:**
 - DS3231 và LCD I2C: Cùng chia sẻ bus I2C (D1 và D2)
