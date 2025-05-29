@@ -56,7 +56,7 @@ export function useHistoryData(): HistoryDataResult {
 		);
 
 		// Limit to 50 most recent entries
-		const recentEntries = sortedEntries.slice(-50);
+		const recentEntries = sortedEntries;
 
 		recentEntries.forEach(([timestamp, value]) => {
 			try {

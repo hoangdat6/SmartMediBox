@@ -50,7 +50,7 @@ export default function TabLayout() {
 			<Tabs.Screen
 				name="history"
 				options={{
-					title: "History",
+					title: "Monitor",
 					tabBarIcon: ({ color }) => (
 						<MaterialCommunityIcons
 							name="chart-bar"
@@ -63,7 +63,7 @@ export default function TabLayout() {
 			<Tabs.Screen
 				name="history-list"
 				options={{
-					title: "History List",
+					title: "History",
 					tabBarIcon: ({ color }) => (
 						<MaterialCommunityIcons
 							name="chart-bar"
@@ -80,6 +80,19 @@ export default function TabLayout() {
 					tabBarIcon: ({ color }) => (
 						<MaterialCommunityIcons
 							name="bell"
+							size={28}
+							color={color}
+						/>
+					),
+				}}
+			/>
+			<Tabs.Screen
+				name="logs"
+				options={{
+					title: "Logs",
+					tabBarIcon: ({ color }) => (
+						<MaterialCommunityIcons
+							name="file-document"
 							size={28}
 							color={color}
 						/>

@@ -273,7 +273,7 @@ export default function HistoryScreen() {
 		});
 
 		// Take only the most recent 50 data points
-		const recentData = sortedData.slice(-50);
+		const recentData = sortedData.slice(-100);
 
 		// Log the number of data points we're displaying
 		console.log(
