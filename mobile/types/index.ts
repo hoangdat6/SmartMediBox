@@ -18,11 +18,18 @@ export interface StatusData {
 	lastUpdated: string;
 }
 
+export type FromTo = {
+	available: boolean;
+	enabled?: boolean;
+	start: string;
+	end: string;
+};
+
 // Settings types
 export interface ReminderTimes {
-	morning: string;
-	noon: string;
-	evening: string;
+	morning: FromTo;
+	noon: FromTo;
+	evening: FromTo;
 }
 
 export interface AlertThresholds {

@@ -2,7 +2,7 @@ import {
 	pushData,
 	subscribeToData,
 	updateData,
-} from "@/services/firebaseService"; // Changed from mockDataService
+} from "@/services/firebaseService";
 import { CabinetStatus, StatusData, TimeOfDay } from "@/types";
 import { useEffect, useState } from "react";
 
@@ -80,7 +80,7 @@ export function useFirebaseData(): FirebaseDataResult {
 			await pushData("logs", {
 				event: "manual_open",
 				cabinet: timeOfDay,
-				timestamp: new Date().toISOString,
+				timestamp: new Date().toISOString(),
 			});
 
 			return true;

@@ -4,8 +4,9 @@ import { Loading } from "@/components/Loading";
 import { SensorCard } from "@/components/SensorCard";
 import { useTheme } from "@/context/ThemeContext";
 import { useFirebaseData } from "@/hooks/useFirebaseData";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { TimeOfDay } from "@/types";
-import { getCurrentTimeOfDay } from "@/utils/timeUtils";
+import { getCurrentTimeOfDayFromSettings } from "@/utils/timeUtils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -13,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function DashboardScreen() {
 	const { colors } = useTheme();
+	const { settings } = useSettingsStore();
 	const {
 		fanStatus,
 		toggleFan,
@@ -24,18 +26,23 @@ export default function DashboardScreen() {
 		loading,
 		error,
 	} = useFirebaseData();
-	const [currentTimeOfDay, setCurrentTimeOfDay] = useState<TimeOfDay>(
-		getCurrentTimeOfDay()
+	const [currentTimeOfDay, setCurrentTimeOfDay] = useState<TimeOfDay | null>(
+		getCurrentTimeOfDayFromSettings()
 	);
 
 	// Refresh the current time of day every minute
 	useEffect(() => {
 		const interval = setInterval(() => {
-			setCurrentTimeOfDay(getCurrentTimeOfDay());
+			setCurrentTimeOfDay(getCurrentTimeOfDayFromSettings());
 		}, 60000);
 
 		return () => clearInterval(interval);
 	}, []);
+
+	// Check if a compartment is available based on settings
+	const isCompartmentAvailable = (timeOfDay: TimeOfDay): boolean => {
+		return !!settings?.reminderTimes[timeOfDay]?.enabled;
+	};
 
 	if (loading) {
 		return (
@@ -79,6 +86,9 @@ export default function DashboardScreen() {
 
 	// Handler for toggling the current time compartment
 	const handleToggleCurrentCompartment = () => {
+		// Don't do anything if not in a valid time period
+		if (!currentTimeOfDay) return;
+
 		const isCurrentOpen = cabinetStatus?.[currentTimeOfDay] === "opened";
 		if (isCurrentOpen) {
 			closeCabinet(currentTimeOfDay);
@@ -89,6 +99,9 @@ export default function DashboardScreen() {
 
 	// Handler for toggling any compartment
 	const handleToggleCompartment = (timeOfDay: TimeOfDay) => {
+		// Only allow toggling if the compartment is available in settings
+		if (!isCompartmentAvailable(timeOfDay)) return;
+
 		const isOpen = cabinetStatus?.[timeOfDay] === "opened";
 		if (isOpen) {
 			closeCabinet(timeOfDay);
@@ -97,9 +110,21 @@ export default function DashboardScreen() {
 		}
 	};
 
+	// Get appropriate text for the main action button
+	const getActionButtonText = () => {
+		if (!currentTimeOfDay) {
+			return "Không trong khung giờ uống thuốc";
+		}
+
+		const isCurrentOpen = cabinetStatus?.[currentTimeOfDay] === "opened";
+		return isCurrentOpen
+			? `Đóng ngăn ${getCompartmentName(currentTimeOfDay)}`
+			: `Mở ngăn ${getCompartmentName(currentTimeOfDay)}`;
+	};
+
 	// Check if the current time compartment is open
 	const isCurrentCompartmentOpen =
-		cabinetStatus?.[currentTimeOfDay] === "opened";
+		currentTimeOfDay && cabinetStatus?.[currentTimeOfDay] === "opened";
 
 	return (
 		<SafeAreaView
@@ -109,10 +134,6 @@ export default function DashboardScreen() {
 			<Header />
 
 			<View style={styles.content}>
-				<Text style={[styles.heading, { color: colors.text }]}>
-					Smart MediBox
-				</Text>
-
 				<View style={styles.sensorContainer}>
 					<SensorCard
 						icon="thermometer"
@@ -202,6 +223,7 @@ export default function DashboardScreen() {
 						isOpen={cabinetStatus?.morning === "opened"}
 						timeOfDay="morning"
 						isCurrent={currentTimeOfDay === "morning"}
+						isDisabled={!isCompartmentAvailable("morning")}
 						onPress={handleToggleCompartment}
 					/>
 					<CompartmentBox
@@ -209,6 +231,7 @@ export default function DashboardScreen() {
 						isOpen={cabinetStatus?.noon === "opened"}
 						timeOfDay="noon"
 						isCurrent={currentTimeOfDay === "noon"}
+						isDisabled={!isCompartmentAvailable("noon")}
 						onPress={handleToggleCompartment}
 					/>
 					<CompartmentBox
@@ -216,6 +239,7 @@ export default function DashboardScreen() {
 						isOpen={cabinetStatus?.evening === "opened"}
 						timeOfDay="evening"
 						isCurrent={currentTimeOfDay === "evening"}
+						isDisabled={!isCompartmentAvailable("evening")}
 						onPress={handleToggleCompartment}
 					/>
 				</View>
@@ -224,24 +248,29 @@ export default function DashboardScreen() {
 					style={[
 						styles.openButton,
 						{
-							backgroundColor: isCurrentCompartmentOpen
+							backgroundColor: !currentTimeOfDay
+								? "#888888"
+								: isCurrentCompartmentOpen
 								? "#F44336"
 								: "#4CAF50",
 						},
 					]}
+					disabled={!currentTimeOfDay}
 					onPress={handleToggleCurrentCompartment}
 				>
 					<MaterialCommunityIcons
-						name={isCurrentCompartmentOpen ? "close-box" : "pill"}
+						name={
+							!currentTimeOfDay
+								? "clock-outline"
+								: isCurrentCompartmentOpen
+								? "close-box"
+								: "pill"
+						}
 						size={24}
 						color="white"
 					/>
 					<Text style={styles.openButtonText}>
-						{isCurrentCompartmentOpen
-							? `Đóng ngăn ${getCompartmentName(
-									currentTimeOfDay
-							  )}`
-							: `Mở ngăn ${getCompartmentName(currentTimeOfDay)}`}
+						{getActionButtonText()}
 					</Text>
 				</TouchableOpacity>
 			</View>

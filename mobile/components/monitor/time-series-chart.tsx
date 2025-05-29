@@ -8,6 +8,7 @@ import {
 	VictoryLine,
 	VictoryScatter,
 	VictoryTheme,
+	VictoryTooltip,
 } from "victory-native";
 
 export interface TimeSeriesDataPoint {
@@ -27,6 +28,7 @@ interface TimeSeriesChartProps {
 	enableScrolling?: boolean;
 	focusOnLatest?: boolean;
 	maxPoints?: number; // Maximum number of points to display
+	dataType?: "temperature" | "humidity"; // Add dataType property
 }
 
 const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
@@ -41,6 +43,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	enableScrolling = false,
 	focusOnLatest = false,
 	maxPoints = 50,
+	dataType,
 }) => {
 	// Determine chart appearance based on dark/light mode
 	const textColor = darkMode ? "#E0E0E0" : "#333333";
@@ -50,7 +53,15 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		: "rgba(0,0,0,0.1)";
 
 	// Calculate domain paddings and other chart adjustments
-	const calculateYDomain = () => {
+	const calculateYDomain = (): [number, number] => {
+		// Return fixed ranges based on dataType
+		if (dataType === "temperature") {
+			return [20, 40]; // Fixed range for temperature (°C)
+		} else if (dataType === "humidity") {
+			return [60, 90]; // Fixed range for humidity (%)
+		}
+
+		// Fallback to dynamic calculation if dataType is not specified
 		if (data.length === 0) return [0, 1];
 
 		const yValues = data.map((d) => d.y);
@@ -102,8 +113,16 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 			data: {
 				fill: color,
 				stroke: darkMode ? "#121212" : "#FFFFFF",
-				strokeWidth: 1,
-				size: 3,
+				strokeWidth: 1.5,
+				size: 5, // Increased size for better visibility
+			},
+			labels: {
+				fill: darkMode ? "#FFF" : "#333",
+				fontSize: 9,
+				fontWeight: "bold",
+				padding: 5,
+				backgroundColor: darkMode ? "#333" : "#F5F5F5",
+				borderRadius: 3,
 			},
 		},
 	};
@@ -134,14 +153,52 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		return tick;
 	};
 
-	const chartContent = (
+	// Format y-value for display
+	const formatDataValue = (y: number) => {
+		return y.toFixed(1) + (dataType === "temperature" ? "°C" : "%");
+	};
+
+	// Add data labels to points
+	const labeledData = data.map((point) => ({
+		...point,
+		label: formatDataValue(point.y),
+	}));
+
+	// Create fixed y-axis chart
+	const yAxisChart = (
+		<VictoryChart
+			width={60} // Width just for the y-axis
+			height={240}
+			padding={{ top: 30, right: 0, bottom: 60, left: 60 }}
+			theme={darkMode ? VictoryTheme.material : VictoryTheme.grayscale}
+			domain={{ y: calculateYDomain() }}
+		>
+			{/* Y Axis Only */}
+			<VictoryAxis
+				dependentAxis
+				label={yAxisLabel}
+				axisLabelComponent={
+					<VictoryLabel dy={-45} style={chartStyles.axisLabel} />
+				}
+				tickFormat={(t) => t.toFixed(1)}
+				style={{
+					axis: { stroke: darkMode ? "#555" : "#ccc" },
+					grid: chartStyles.gridLine,
+					tickLabels: chartStyles.axisTickLabels,
+				}}
+			/>
+		</VictoryChart>
+	);
+
+	// Main chart content (without y-axis)
+	const mainChartContent = (
 		<VictoryChart
 			width={chartWidth}
 			height={240}
-			padding={{ top: 30, right: 30, bottom: 60, left: 60 }} // Increased bottom padding for labels
+			padding={{ top: 30, right: 30, bottom: 60, left: 0 }} // No left padding as y-axis is separate
 			theme={darkMode ? VictoryTheme.material : VictoryTheme.grayscale}
 			domain={{ y: calculateYDomain() }}
-			scale={{ x: "time" }} // Add time scale to handle time properly
+			scale={{ x: "time" }}
 		>
 			{/* X Axis */}
 			<VictoryAxis
@@ -156,25 +213,20 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 						...chartStyles.axisTickLabels,
 						angle: 45,
 						textAnchor: "start",
-						fontSize: 8, // Smaller font to fit more labels
+						fontSize: 8,
 					},
 				}}
 				tickFormat={formatTick}
-				tickCount={Math.min(15, Math.max(5, Math.floor(dataCount / 5)))} // Show more ticks
+				tickCount={Math.min(15, Math.max(5, Math.floor(dataCount / 5)))}
 			/>
 
-			{/* Y Axis */}
+			{/* Empty Y Axis (to maintain spacing) */}
 			<VictoryAxis
 				dependentAxis
-				label={yAxisLabel}
-				axisLabelComponent={
-					<VictoryLabel dy={-45} style={chartStyles.axisLabel} />
-				}
-				tickFormat={(t) => t.toFixed(1)}
 				style={{
-					axis: { stroke: darkMode ? "#555" : "#ccc" },
+					axis: { stroke: "transparent" },
 					grid: chartStyles.gridLine,
-					tickLabels: chartStyles.axisTickLabels,
+					tickLabels: { opacity: 0 },
 				}}
 			/>
 
@@ -198,13 +250,36 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 				style={chartStyles.line}
 			/>
 
-			{/* Data points (optional) */}
-			{showDataPoints && data.length < 30 && (
+			{/* Data points with always visible labels */}
+			{showDataPoints && (
 				<VictoryScatter
-					data={data}
+					data={labeledData}
 					x="x"
 					y="y"
 					style={chartStyles.scatter}
+					size={5}
+					labels={({ datum }) => datum.label}
+					labelComponent={
+						<VictoryTooltip
+							active={true} // Always show the tooltips
+							flyoutStyle={{
+								stroke: color,
+								strokeWidth: 1,
+								fill: darkMode
+									? "rgba(33, 33, 33, 0.9)"
+									: "rgba(255, 255, 255, 0.9)",
+							}}
+							flyoutPadding={{
+								top: 2,
+								bottom: 2,
+								left: 5,
+								right: 5,
+							}}
+							pointerLength={5}
+							cornerRadius={3}
+							renderInPortal={false}
+						/>
+					}
 				/>
 			)}
 		</VictoryChart>
@@ -221,18 +296,28 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 				</Text>
 			)}
 
-			{enableScrolling ? (
-				<ScrollView
-					ref={scrollViewRef}
-					horizontal
-					showsHorizontalScrollIndicator={true}
-					contentContainerStyle={styles.scrollViewContent}
-				>
-					{chartContent}
-				</ScrollView>
-			) : (
-				chartContent
-			)}
+			<View style={styles.chartContainer}>
+				{/* Fixed Y-axis (always visible) */}
+				<View style={styles.yAxisContainer}>{yAxisChart}</View>
+
+				{/* Scrollable chart content */}
+				{enableScrolling ? (
+					<ScrollView
+						ref={scrollViewRef}
+						horizontal
+						showsHorizontalScrollIndicator={true}
+						contentContainerStyle={styles.scrollViewContent}
+					>
+						<View style={styles.mainChartContainer}>
+							{mainChartContent}
+						</View>
+					</ScrollView>
+				) : (
+					<View style={styles.mainChartContainer}>
+						{mainChartContent}
+					</View>
+				)}
+			</View>
 		</View>
 	);
 };
@@ -253,6 +338,17 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 		marginBottom: 10,
 		textAlign: "center",
+	},
+	chartContainer: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+	},
+	yAxisContainer: {
+		width: 60,
+		height: 240,
+	},
+	mainChartContainer: {
+		flex: 1,
 	},
 	scrollViewContent: {
 		flexGrow: 1,

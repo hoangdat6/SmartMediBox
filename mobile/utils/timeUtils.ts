@@ -1,8 +1,62 @@
+import { useSettingsStore } from "@/stores/settingsStore";
+
 export type TimeOfDay = "morning" | "noon" | "evening";
 
 /**
- * Determines the current time of day (morning, noon, evening)
- * @returns 'morning' | 'noon' | 'evening'
+ * Determines the current time of day (morning, noon, evening) based on settings
+ * @returns TimeOfDay or null if not in any time period
+ */
+export const getCurrentTimeOfDayFromSettings = (): TimeOfDay | null => {
+	const settings = useSettingsStore.getState().settings;
+	if (!settings?.reminderTimes) return null;
+
+	const now = new Date();
+	const currentHour = now.getHours();
+	const currentMinute = now.getMinutes();
+	const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+	const { morning, noon, evening } = settings.reminderTimes;
+
+	// Check if current time falls within any of the defined periods
+	if (morning.available) {
+		const morningStart = timeToMinutes(morning.start);
+		const morningEnd = timeToMinutes(morning.end);
+		if (
+			currentTimeInMinutes >= morningStart &&
+			currentTimeInMinutes <= morningEnd
+		) {
+			return "morning";
+		}
+	}
+
+	if (noon.available) {
+		const noonStart = timeToMinutes(noon.start);
+		const noonEnd = timeToMinutes(noon.end);
+		if (
+			currentTimeInMinutes >= noonStart &&
+			currentTimeInMinutes <= noonEnd
+		) {
+			return "noon";
+		}
+	}
+
+	if (evening.available) {
+		const eveningStart = timeToMinutes(evening.start);
+		const eveningEnd = timeToMinutes(evening.end);
+		if (
+			currentTimeInMinutes >= eveningStart &&
+			currentTimeInMinutes <= eveningEnd
+		) {
+			return "evening";
+		}
+	}
+
+	return null;
+};
+
+/**
+ * Legacy function - kept for backward compatibility
+ * @returns TimeOfDay based on hard-coded time ranges
  */
 export const getCurrentTimeOfDay = (): TimeOfDay => {
 	const currentHour = new Date().getHours();
@@ -29,5 +83,20 @@ export const formatTimeForDisplay = (timeString: string): string => {
 		return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
 	} catch (e) {
 		return timeString;
+	}
+};
+
+/**
+ * Convert time string to minutes for comparison
+ */
+export const timeToMinutes = (timeString: string | undefined): number => {
+	if (!timeString) return 0;
+
+	try {
+		const [hours, minutes] = timeString.split(":").map(Number);
+		return (hours || 0) * 60 + (minutes || 0);
+	} catch (error) {
+		console.error("Error converting time to minutes:", error);
+		return 0;
 	}
 };

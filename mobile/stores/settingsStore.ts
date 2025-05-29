@@ -1,4 +1,4 @@
-import { getData, updateData } from "@/services/firebaseService"; // Changed from mockDataService
+import { getData, updateData } from "@/services/firebaseService";
 import { Settings } from "@/types";
 import { create } from "zustand";
 
@@ -7,7 +7,12 @@ interface SettingsStore {
 	loading: boolean;
 	error: string | null;
 	fetchSettings: () => Promise<void>;
-	updateReminderTime: (timeOfDay: string, time: string) => void;
+	updateReminderTime: (
+		timeOfDay: string,
+		timeType: "start" | "end",
+		time: string
+	) => void;
+	toggleReminderEnability: (timeOfDay: string) => void;
 	updateTemperatureThreshold: (value: number) => void;
 	updateHumidityThreshold: (value: number) => void;
 	toggleAutoControl: () => void;
@@ -30,9 +35,21 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 				set({
 					settings: {
 						reminderTimes: {
-							morning: "07:00",
-							noon: "12:00",
-							evening: "19:00",
+							morning: {
+								available: true,
+								start: "06:00",
+								end: "08:00",
+							},
+							noon: {
+								available: true,
+								start: "11:30",
+								end: "13:30",
+							},
+							evening: {
+								available: true,
+								start: "18:00",
+								end: "20:00",
+							},
 						},
 						alertThresholds: { temperature: 35, humidity: 65 },
 						autoControl: { enabled: true },
@@ -48,14 +65,45 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 		}
 	},
 
-	updateReminderTime: (timeOfDay: string, time: string) => {
+	updateReminderTime: (
+		timeOfDay: string,
+		timeType: "start" | "end",
+		time: string
+	) => {
 		set((state) => ({
 			settings: state.settings
 				? {
 						...state.settings,
 						reminderTimes: {
 							...state.settings.reminderTimes,
-							[timeOfDay]: time,
+							[timeOfDay]: {
+								...state.settings.reminderTimes[
+									timeOfDay as keyof typeof state.settings.reminderTimes
+								],
+								[timeType]: time,
+							},
+						},
+				  }
+				: null,
+		}));
+	},
+
+	toggleReminderEnability: (timeOfDay: string) => {
+		set((state) => ({
+			settings: state.settings
+				? {
+						...state.settings,
+						reminderTimes: {
+							...state.settings.reminderTimes,
+							[timeOfDay]: {
+								...state.settings.reminderTimes[
+									timeOfDay as keyof typeof state.settings.reminderTimes
+								],
+								enabled:
+									!state.settings.reminderTimes[
+										timeOfDay as keyof typeof state.settings.reminderTimes
+									].enabled,
+							},
 						},
 				  }
 				: null,

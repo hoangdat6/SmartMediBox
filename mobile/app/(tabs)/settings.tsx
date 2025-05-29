@@ -3,12 +3,13 @@ import { Loading } from "@/components/Loading";
 import { useTheme } from "@/context/ThemeContext";
 import { updateData } from "@/services/firebaseService";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { TimeOfDay } from "@/types";
+import { FromTo, TimeOfDay } from "@/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Slider from "@react-native-community/slider";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+	Alert,
 	Platform,
 	ScrollView,
 	StyleSheet,
@@ -21,43 +22,85 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 interface TimeSettingRowProps {
 	label: string;
-	time: string;
-	onPress: () => void;
+	timeRange: FromTo;
+	onPressStart: () => void;
+	onPressEnd: () => void;
+	onToggleEnable: () => void;
 	icon: string;
+	hasError?: boolean;
 }
 
 // Helper component for time settings
 const TimeSettingRow = ({
 	label,
-	time,
-	onPress,
+	timeRange,
+	onPressStart,
+	onPressEnd,
+	onToggleEnable,
 	icon,
+	hasError,
 }: TimeSettingRowProps) => {
 	const { colors } = useTheme();
 
 	return (
-		<TouchableOpacity
-			style={[styles.timeRow, { borderBottomColor: colors.border }]}
-			onPress={onPress}
-		>
-			<MaterialCommunityIcons
-				name={icon}
-				size={24}
-				color={colors.text}
-				style={styles.timeIcon}
-			/>
-			<Text style={[styles.timeLabel, { color: colors.text }]}>
-				{label}
-			</Text>
-			<Text style={[styles.timeValue, { color: colors.secondary }]}>
-				{time}
-			</Text>
-			<MaterialCommunityIcons
-				name="chevron-right"
-				size={24}
-				color={colors.border}
-			/>
-		</TouchableOpacity>
+		<View style={[styles.timeRow, { borderBottomColor: colors.border }]}>
+			<View style={styles.timeHeaderRow}>
+				<MaterialCommunityIcons
+					name={icon}
+					size={24}
+					color={timeRange.enabled ? colors.text : colors.border}
+					style={styles.timeIcon}
+				/>
+				<Text
+					style={[
+						styles.timeLabel,
+						{
+							color: timeRange.enabled
+								? colors.text
+								: colors.border,
+							flex: 1,
+						},
+					]}
+				>
+					{label}
+				</Text>
+				<Switch
+					value={timeRange.enabled}
+					onValueChange={onToggleEnable}
+					trackColor={{
+						false: "#D3D3D3",
+						true: colors.primary,
+					}}
+					thumbColor={timeRange.enabled ? "#fff" : "#f4f3f4"}
+				/>
+			</View>
+
+			{timeRange.enabled && (
+				<View style={styles.timeRangeContainer}>
+					<TouchableOpacity onPress={onPressStart}>
+						<Text
+							style={[
+								styles.timeValue,
+								{ color: hasError ? "red" : colors.secondary },
+							]}
+						>
+							{timeRange.start}
+						</Text>
+					</TouchableOpacity>
+					<Text style={{ color: colors.text }}>-</Text>
+					<TouchableOpacity onPress={onPressEnd}>
+						<Text
+							style={[
+								styles.timeValue,
+								{ color: hasError ? "red" : colors.secondary },
+							]}
+						>
+							{timeRange.end}
+						</Text>
+					</TouchableOpacity>
+				</View>
+			)}
+		</View>
 	);
 };
 
@@ -66,9 +109,9 @@ export default function SettingsScreen() {
 	const {
 		settings,
 		updateReminderTime,
+		toggleReminderEnability,
 		updateTemperatureThreshold,
 		updateHumidityThreshold,
-		toggleAutoControl,
 		loading,
 		saveSettings,
 	} = useSettingsStore();
@@ -77,22 +120,104 @@ export default function SettingsScreen() {
 	const [currentEditingTime, setCurrentEditingTime] = useState<
 		TimeOfDay | ""
 	>("");
+	const [currentEditingType, setCurrentEditingType] = useState<
+		"start" | "end"
+	>("start");
 	const [hasChanges, setHasChanges] = useState(false);
+	const [timeErrors, setTimeErrors] = useState<{
+		morning: boolean;
+		noon: boolean;
+		evening: boolean;
+	}>({ morning: false, noon: false, evening: false });
 
 	// Format time string from "HH:MM" to Date object
-	const parseTimeString = (timeString: string): Date => {
-		const [hours, minutes] = timeString.split(":").map(Number);
-		const date = new Date();
-		date.setHours(hours, minutes, 0, 0);
-		return date;
+	const parseTimeString = (timeString: string | undefined): Date => {
+		if (!timeString) {
+			// Return a default time if the string is undefined
+			const defaultDate = new Date();
+			defaultDate.setHours(8, 0, 0, 0);
+			return defaultDate;
+		}
+
+		try {
+			const [hours, minutes] = timeString.split(":").map(Number);
+			const date = new Date();
+			date.setHours(hours || 0, minutes || 0, 0, 0);
+			return date;
+		} catch (error) {
+			console.error("Error parsing time string:", error);
+			// Return a default time if parsing fails
+			const defaultDate = new Date();
+			defaultDate.setHours(8, 0, 0, 0);
+			return defaultDate;
+		}
 	};
 
-	// Format Date object to "HH:MM" string
-	const formatTime = (date: Date): string => {
-		const hours = String(date.getHours()).padStart(2, "0");
-		const minutes = String(date.getMinutes()).padStart(2, "0");
-		return `${hours}:${minutes}`;
-	};
+	// Convert time string to minutes for comparison
+	const timeToMinutes = useCallback(
+		(timeString: string | undefined): number => {
+			if (!timeString) return 0;
+
+			try {
+				const [hours, minutes] = timeString.split(":").map(Number);
+				return (hours || 0) * 60 + (minutes || 0);
+			} catch (error) {
+				console.error("Error converting time to minutes:", error);
+				return 0;
+			}
+		},
+		[]
+	);
+
+	// Validate time ranges to ensure they don't overlap and are in correct order
+	const validateTimeRanges = useCallback(() => {
+		if (!settings?.reminderTimes) return false;
+
+		try {
+			const { morning, noon, evening } = settings.reminderTimes;
+
+			// Check each time range is valid (start before end)
+			const morningValid =
+				timeToMinutes(morning?.start) < timeToMinutes(morning?.end);
+			const noonValid =
+				timeToMinutes(noon?.start) < timeToMinutes(noon?.end);
+			const eveningValid =
+				timeToMinutes(evening?.start) < timeToMinutes(evening?.end);
+
+			// Check time ranges don't overlap
+			const morningEndsBeforeNoonStarts =
+				timeToMinutes(morning?.end) <= timeToMinutes(noon?.start);
+			const noonEndsBeforeEveningStarts =
+				timeToMinutes(noon?.end) <= timeToMinutes(evening?.start);
+
+			setTimeErrors({
+				morning: !morningValid || !morningEndsBeforeNoonStarts,
+				noon:
+					!noonValid ||
+					!morningEndsBeforeNoonStarts ||
+					!noonEndsBeforeEveningStarts,
+				evening: !eveningValid || !noonEndsBeforeEveningStarts,
+			});
+
+			return (
+				morningValid &&
+				noonValid &&
+				eveningValid &&
+				morningEndsBeforeNoonStarts &&
+				noonEndsBeforeEveningStarts
+			);
+		} catch (error) {
+			console.error("Error validating time ranges:", error);
+			return false;
+		}
+	}, [settings?.reminderTimes, timeToMinutes]);
+
+	// Validate times whenever they change
+	useEffect(() => {
+		if (settings?.reminderTimes) {
+			validateTimeRanges();
+		}
+	}, [settings?.reminderTimes, hasChanges, validateTimeRanges]);
 
 	// Handle time changes
 	const handleTimeChange = (event: any, selectedDate?: Date) => {
@@ -100,19 +225,34 @@ export default function SettingsScreen() {
 
 		if (selectedDate && currentEditingTime) {
 			const timeString = formatTime(selectedDate);
-			updateReminderTime(currentEditingTime, timeString);
+			updateReminderTime(
+				currentEditingTime,
+				currentEditingType,
+				timeString
+			);
 			setHasChanges(true);
 		}
 	};
 
 	// Open time picker for specific time slot
-	const openTimePicker = (timeSlot: TimeOfDay) => {
+	const openTimePicker = (timeSlot: TimeOfDay, type: "start" | "end") => {
 		setCurrentEditingTime(timeSlot);
+		setCurrentEditingType(type);
 		setShowPicker(true);
 	};
 
 	// Handle saving all settings
 	const handleSaveSettings = async () => {
+		// Validate time ranges before saving
+		if (!validateTimeRanges()) {
+			Alert.alert(
+				"Thời gian không hợp lệ",
+				"Vui lòng đảm bảo thời gian không chồng lấp và sắp xếp theo thứ tự sáng < trưa < tối",
+				[{ text: "OK" }]
+			);
+			return;
+		}
+
 		// Update settings in Firebase
 		try {
 			// Update reminder times
@@ -147,6 +287,28 @@ export default function SettingsScreen() {
 		}
 	};
 
+	// Fix the DateTimePicker value calculation
+	const getTimePickerValue = (): Date => {
+		try {
+			if (!currentEditingTime || !settings?.reminderTimes) {
+				return parseTimeString("08:00"); // Default fallback
+			}
+
+			const timeSlot =
+				settings.reminderTimes[currentEditingTime as TimeOfDay];
+			if (!timeSlot) {
+				return parseTimeString("08:00"); // Default fallback
+			}
+
+			return parseTimeString(
+				currentEditingType === "start" ? timeSlot.start : timeSlot.end
+			);
+		} catch (error) {
+			console.error("Error getting time picker value:", error);
+			return parseTimeString("08:00"); // Default fallback
+		}
+	};
+
 	return (
 		<SafeAreaView
 			style={[styles.container, { backgroundColor: colors.background }]}
@@ -173,25 +335,80 @@ export default function SettingsScreen() {
 							Thời gian nhắc nhở thuốc
 						</Text>
 
+						{timeErrors.morning ||
+						timeErrors.noon ||
+						timeErrors.evening ? (
+							<Text style={styles.errorText}>
+								Vui lòng đảm bảo thời gian không chồng lấp và
+								sắp xếp theo thứ tự sáng {"<"} trưa {"<"} tối
+							</Text>
+						) : null}
+
 						<TimeSettingRow
 							label="Buổi sáng"
-							time={settings?.reminderTimes?.morning || "07:00"}
-							onPress={() => openTimePicker("morning")}
+							timeRange={
+								settings?.reminderTimes?.morning || {
+									enabled: true,
+									available:
+										settings?.reminderTimes?.morning
+											?.available ?? true,
+									start: "06:00",
+									end: "08:00",
+								}
+							}
+							onPressStart={() =>
+								openTimePicker("morning", "start")
+							}
+							onPressEnd={() => openTimePicker("morning", "end")}
+							onToggleEnable={() =>
+								toggleReminderEnability("morning")
+							}
 							icon="weather-sunset-up"
+							hasError={timeErrors.morning}
 						/>
 
 						<TimeSettingRow
 							label="Buổi trưa"
-							time={settings?.reminderTimes?.noon || "12:00"}
-							onPress={() => openTimePicker("noon")}
+							timeRange={
+								settings?.reminderTimes?.noon || {
+									enabled: true,
+									available:
+										settings?.reminderTimes?.noon
+											?.available ?? true,
+									start: "11:30",
+									end: "13:30",
+								}
+							}
+							onPressStart={() => openTimePicker("noon", "start")}
+							onPressEnd={() => openTimePicker("noon", "end")}
+							onToggleEnable={() =>
+								toggleReminderEnability("noon")
+							}
 							icon="weather-sunny"
+							hasError={timeErrors.noon}
 						/>
 
 						<TimeSettingRow
 							label="Buổi tối"
-							time={settings?.reminderTimes?.evening || "19:00"}
-							onPress={() => openTimePicker("evening")}
+							timeRange={
+								settings?.reminderTimes?.evening || {
+									enabled: true,
+									available:
+										settings?.reminderTimes?.evening
+											?.available ?? true,
+									start: "18:00",
+									end: "20:00",
+								}
+							}
+							onPressStart={() =>
+								openTimePicker("evening", "start")
+							}
+							onPressEnd={() => openTimePicker("evening", "end")}
+							onToggleEnable={() =>
+								toggleReminderEnability("evening")
+							}
 							icon="weather-night"
+							hasError={timeErrors.evening}
 						/>
 					</View>
 
@@ -292,33 +509,6 @@ export default function SettingsScreen() {
 								}
 							/>
 						</View>
-
-						<View style={styles.switchRow}>
-							<Text
-								style={[
-									styles.switchLabel,
-									{ color: colors.text },
-								]}
-							>
-								Tự động điều khiển
-							</Text>
-							<Switch
-								value={settings?.autoControl?.enabled || false}
-								onValueChange={() => {
-									toggleAutoControl();
-									setHasChanges(true);
-								}}
-								trackColor={{
-									false: "#D3D3D3",
-									true: colors.primary,
-								}}
-								thumbColor={
-									settings?.autoControl?.enabled
-										? "#fff"
-										: "#f4f3f4"
-								}
-							/>
-						</View>
 					</View>
 
 					{hasChanges && (
@@ -337,15 +527,7 @@ export default function SettingsScreen() {
 
 					{showPicker && (
 						<DateTimePicker
-							value={parseTimeString(
-								currentEditingTime === "morning"
-									? settings?.reminderTimes?.morning ||
-											"07:00"
-									: currentEditingTime === "noon"
-									? settings?.reminderTimes?.noon || "12:00"
-									: settings?.reminderTimes?.evening ||
-									  "19:00"
-							)}
+							value={getTimePickerValue()}
 							mode="time"
 							is24Hour={true}
 							display="default"
@@ -392,9 +574,13 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 		marginBottom: 15,
 	},
-	timeRow: {
+	timeHeaderRow: {
 		flexDirection: "row",
 		alignItems: "center",
+		width: "100%",
+	},
+	timeRow: {
+		flexDirection: "column",
 		paddingVertical: 12,
 		borderBottomWidth: 1,
 		borderBottomColor: "#f0f0f0",
@@ -409,8 +595,13 @@ const styles = StyleSheet.create({
 	timeValue: {
 		fontSize: 16,
 		fontWeight: "500",
-		marginRight: 10,
-		color: "#0066CC",
+		marginHorizontal: 5,
+	},
+	timeRangeContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginTop: 8,
+		paddingLeft: 34, // To align with the label
 	},
 	sliderLabel: {
 		fontSize: 16,
@@ -442,4 +633,15 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "bold",
 	},
+	errorText: {
+		color: "red",
+		marginBottom: 10,
+		fontSize: 14,
+	},
 });
+
+function formatTime(selectedDate: Date): string {
+	const hours = selectedDate.getHours().toString().padStart(2, "0");
+	const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+	return `${hours}:${minutes}`;
+}
