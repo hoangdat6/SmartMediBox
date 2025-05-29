@@ -1,5 +1,7 @@
 import { Header } from "@/components/Header";
-import { SimpleChartView } from "@/components/SimpleChartView";
+import TimeSeriesChart, {
+	TimeSeriesDataPoint,
+} from "@/components/monitor/time-series-chart";
 import { useTheme } from "@/context/ThemeContext";
 import { useHistoryData } from "@/hooks/useHistoryData";
 import { TimeOfDay } from "@/types";
@@ -15,11 +17,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-interface ChartData {
-	x: string;
-	y: number;
-}
-
 interface OpeningEvent {
 	time: string;
 	cabinet: TimeOfDay;
@@ -27,7 +24,16 @@ interface OpeningEvent {
 
 export default function HistoryScreen() {
 	const { colors, theme } = useTheme();
-	const { historyData, loading, error } = useHistoryData();
+	const {
+		historyData,
+		loading,
+		error,
+		fetchHistory,
+		startAutoGeneration,
+		stopAutoGeneration,
+		isGenerating,
+	} = useHistoryData();
+	const isDarkMode = theme === "dark";
 
 	// Get a list of available dates from history data
 	const availableDates = Object.keys(historyData || {}).sort(
@@ -57,8 +63,8 @@ export default function HistoryScreen() {
 		"temperature"
 	);
 
-	// Function to format chart data from history
-	const formatChartData = (): ChartData[] => {
+	// Function to format chart data from history - limit to most recent 50 points
+	const getChartData = (): TimeSeriesDataPoint[] => {
 		if (!historyData || !historyData[selectedDate]) return [];
 
 		// Extract timepoints and values for selected date and mode
@@ -68,17 +74,62 @@ export default function HistoryScreen() {
 					displayMode === "temperature"
 						? values.temperature
 						: values.humidity;
+
+				// Return data point with properly formatted time
 				return { x: time, y: value };
 			}
 		);
 
-		return data.sort((a, b) => {
-			// Sort by time
-			const [aHour, aMin] = a.x.split(":").map(Number);
-			const [bHour, bMin] = b.x.split(":").map(Number);
-			return aHour * 60 + aMin - (bHour * 60 + bMin);
+		// Sort by time including milliseconds - ensure we're using a proper time comparison
+		const sortedData = data.sort((a, b) => {
+			// Get the time strings
+			const timeA = a.x.toString();
+			const timeB = b.x.toString();
+
+			// Parse the time strings into milliseconds for comparison
+			const getTimeInMilliseconds = (timeStr: string): number => {
+				const parts = timeStr.split(":");
+				const secondsParts = parts[2]
+					? parts[2].split(".")
+					: ["0", "0"];
+				const hours = parseInt(parts[0]) || 0;
+				const minutes = parseInt(parts[1]) || 0;
+				const seconds = parseInt(secondsParts[0]) || 0;
+				const milliseconds = parseInt(secondsParts[1]) || 0;
+
+				return (
+					hours * 3600000 +
+					minutes * 60000 +
+					seconds * 1000 +
+					milliseconds
+				);
+			};
+
+			return getTimeInMilliseconds(timeA) - getTimeInMilliseconds(timeB);
 		});
+
+		// Take only the most recent 50 data points
+		const recentData = sortedData.slice(-50);
+
+		// Log the number of data points we're displaying
+		console.log(
+			`Displaying ${recentData.length} of ${sortedData.length} data points for ${selectedDate}`
+		);
+
+		return recentData;
 	};
+
+	// Auto-update selected date when new data comes in
+	useEffect(() => {
+		// If we're generating data and today's date is available
+		if (
+			isGenerating &&
+			availableDates.includes(format(new Date(), "yyyy-MM-dd"))
+		) {
+			// Switch to today's date to see real-time updates
+			setSelectedDate(format(new Date(), "yyyy-MM-dd"));
+		}
+	}, [historyData, isGenerating, availableDates]);
 
 	// Get opening events from history
 	const getOpeningEvents = (): OpeningEvent[] => {
@@ -122,13 +173,6 @@ export default function HistoryScreen() {
 		}
 	};
 
-	// Chart error handler
-	const handleChartError = () => {
-		console.log(
-			"Chart rendering error detected, switching to simple chart"
-		);
-	};
-
 	return (
 		<SafeAreaView
 			style={[styles.container, { backgroundColor: colors.background }]}
@@ -143,11 +187,11 @@ export default function HistoryScreen() {
 			) : error ? (
 				<Text style={styles.errorText}>Lỗi: {error}</Text>
 			) : availableDates.length === 0 ? (
-				<View style={styles.content}>
+				<View>
 					<Text
 						style={[
 							styles.noDataText,
-							{ color: theme === "dark" ? "#AAA" : "#666" },
+							{ color: isDarkMode ? "#AAA" : "#666" },
 						]}
 					>
 						Chưa có dữ liệu lịch sử
@@ -155,12 +199,44 @@ export default function HistoryScreen() {
 				</View>
 			) : (
 				<ScrollView style={styles.scrollView}>
+					{/* Add controls for auto-generation */}
+					<View style={styles.autoGenerationControls}>
+						<Text
+							style={[
+								styles.controlLabel,
+								{ color: colors.text },
+							]}
+						>
+							Tự động thêm dữ liệu:
+						</Text>
+						<TouchableOpacity
+							style={[
+								styles.controlButton,
+								{
+									backgroundColor: isGenerating
+										? "#E53935"
+										: "#4CAF50",
+								},
+							]}
+							onPress={
+								isGenerating
+									? stopAutoGeneration
+									: startAutoGeneration
+							}
+						>
+							<Text style={styles.controlButtonText}>
+								{isGenerating ? "Dừng" : "Bắt đầu"}
+							</Text>
+						</TouchableOpacity>
+					</View>
+
 					<View
 						style={[
 							styles.dateNavigator,
 							{
-								backgroundColor:
-									theme === "dark" ? colors.card : "#f5f5f5",
+								backgroundColor: isDarkMode
+									? colors.card
+									: "#f5f5f5",
 							},
 						]}
 					>
@@ -203,12 +279,14 @@ export default function HistoryScreen() {
 							style={[
 								styles.modeButton,
 								{
-									backgroundColor:
-										theme === "dark" ? "#333" : "#f0f0f0",
+									backgroundColor: isDarkMode
+										? "#333"
+										: "#f0f0f0",
 								},
 								displayMode === "temperature" && {
-									backgroundColor:
-										theme === "dark" ? "#444" : "#e0e0e0",
+									backgroundColor: isDarkMode
+										? "#444"
+										: "#e0e0e0",
 								},
 							]}
 							onPress={() => setDisplayMode("temperature")}
@@ -217,12 +295,10 @@ export default function HistoryScreen() {
 								style={[
 									styles.modeText,
 									{
-										color:
-											theme === "dark" ? "#CCC" : "#666",
+										color: isDarkMode ? "#CCC" : "#666",
 									},
 									displayMode === "temperature" && {
-										color:
-											theme === "dark" ? "#FFF" : "#333",
+										color: isDarkMode ? "#FFF" : "#333",
 										fontWeight: "bold",
 									},
 								]}
@@ -235,12 +311,14 @@ export default function HistoryScreen() {
 							style={[
 								styles.modeButton,
 								{
-									backgroundColor:
-										theme === "dark" ? "#333" : "#f0f0f0",
+									backgroundColor: isDarkMode
+										? "#333"
+										: "#f0f0f0",
 								},
 								displayMode === "humidity" && {
-									backgroundColor:
-										theme === "dark" ? "#444" : "#e0e0e0",
+									backgroundColor: isDarkMode
+										? "#444"
+										: "#e0e0e0",
 								},
 							]}
 							onPress={() => setDisplayMode("humidity")}
@@ -249,12 +327,10 @@ export default function HistoryScreen() {
 								style={[
 									styles.modeText,
 									{
-										color:
-											theme === "dark" ? "#CCC" : "#666",
+										color: isDarkMode ? "#CCC" : "#666",
 									},
 									displayMode === "humidity" && {
-										color:
-											theme === "dark" ? "#FFF" : "#333",
+										color: isDarkMode ? "#FFF" : "#333",
 										fontWeight: "bold",
 									},
 								]}
@@ -270,28 +346,36 @@ export default function HistoryScreen() {
 							{ backgroundColor: colors.card },
 						]}
 					>
-						{formatChartData().length > 0 ? (
-							<SimpleChartView
-								data={formatChartData()}
+						{getChartData().length > 0 ? (
+							<TimeSeriesChart
+								data={getChartData()}
 								title={
 									displayMode === "temperature"
 										? "Nhiệt độ (°C)"
 										: "Độ ẩm (%)"
+								}
+								xAxisLabel="Thời gian"
+								yAxisLabel={
+									displayMode === "temperature" ? "°C" : "%"
 								}
 								color={
 									displayMode === "temperature"
 										? "#FF5722"
 										: "#03A9F4"
 								}
-								darkMode={theme === "dark"}
+								darkMode={isDarkMode}
+								showDataPoints={true} // Always show data points for better visibility
+								showGradient={true}
+								enableScrolling={true}
+								focusOnLatest={isGenerating}
+								maxPoints={50} // Specify max points to show
 							/>
 						) : (
 							<Text
 								style={[
 									styles.noDataText,
 									{
-										color:
-											theme === "dark" ? "#AAA" : "#666",
+										color: isDarkMode ? "#AAA" : "#666",
 									},
 								]}
 							>
@@ -317,10 +401,9 @@ export default function HistoryScreen() {
 									style={[
 										styles.eventItem,
 										{
-											borderBottomColor:
-												theme === "dark"
-													? "#333"
-													: "#f0f0f0",
+											borderBottomColor: isDarkMode
+												? "#333"
+												: "#f0f0f0",
 										},
 									]}
 								>
@@ -343,10 +426,9 @@ export default function HistoryScreen() {
 											style={[
 												styles.eventText,
 												{
-													color:
-														theme === "dark"
-															? "#AAA"
-															: "#666",
+													color: isDarkMode
+														? "#AAA"
+														: "#666",
 												},
 											]}
 										>
@@ -362,7 +444,7 @@ export default function HistoryScreen() {
 						<Text
 							style={[
 								styles.noDataText,
-								{ color: theme === "dark" ? "#AAA" : "#666" },
+								{ color: isDarkMode ? "#AAA" : "#666" },
 							]}
 						>
 							Không có sự kiện mở ngăn nào được ghi lại cho ngày
@@ -375,6 +457,7 @@ export default function HistoryScreen() {
 	);
 }
 
+// Styles remain the same
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
@@ -450,17 +533,9 @@ const styles = StyleSheet.create({
 		borderRadius: 5,
 		marginHorizontal: 5,
 	},
-	modeButtonActive: {
-		backgroundColor: "#e0e0e0",
-	},
 	modeText: {
 		fontSize: 14,
 		color: "#666",
-	},
-	modeTextActive: {
-		fontSize: 14,
-		fontWeight: "bold",
-		color: "#333",
 	},
 	eventsList: {
 		backgroundColor: "#fff",
@@ -493,9 +568,26 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		color: "#666",
 	},
-	chartToggle: {
-		alignSelf: "flex-end",
-		padding: 5,
-		marginBottom: 5,
+	autoGenerationControls: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: 15,
+		padding: 10,
+		backgroundColor: "rgba(0,0,0,0.03)",
+		borderRadius: 8,
+	},
+	controlLabel: {
+		fontSize: 16,
+		fontWeight: "500",
+	},
+	controlButton: {
+		paddingVertical: 8,
+		paddingHorizontal: 15,
+		borderRadius: 6,
+	},
+	controlButtonText: {
+		color: "white",
+		fontWeight: "bold",
 	},
 });
