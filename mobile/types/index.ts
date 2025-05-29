@@ -19,7 +19,7 @@ export interface StatusData {
 }
 
 export type FromTo = {
-	available: boolean;
+	drank: boolean;
 	enabled?: boolean;
 	start: string;
 	end: string;
@@ -51,15 +51,9 @@ export interface Settings {
 export interface HistoryTimepoint {
 	temperature: number;
 	humidity: number;
+	temperatureThreshold?: number;
+	humidityThreshold?: number;
 	cabinetOpened?: TimeOfDay;
-}
-
-export interface HistoryDay {
-	[timepoint: string]: HistoryTimepoint;
-}
-
-export interface HistoryData {
-	[date: string]: HistoryDay;
 }
 
 // Notification types

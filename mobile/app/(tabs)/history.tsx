@@ -4,6 +4,7 @@ import TimeSeriesChart, {
 } from "@/components/monitor/time-series-chart";
 import { useTheme } from "@/context/ThemeContext";
 import { useHistoryData } from "@/hooks/useHistoryData";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { TimeOfDay } from "@/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { format } from "date-fns";
@@ -25,6 +26,7 @@ interface OpeningEvent {
 export default function HistoryScreen() {
 	const { colors, theme } = useTheme();
 	const { historyData, loading, error } = useHistoryData();
+	const { settings } = useSettingsStore(); // Get settings for thresholds
 	const isDarkMode = theme === "dark";
 
 	// Get a list of available dates from history data
@@ -328,6 +330,7 @@ export default function HistoryScreen() {
 								enableScrolling={true}
 								maxPoints={50} // Specify max points to show
 								dataType={displayMode} // Pass the current display mode as dataType
+								thresholds={settings?.alertThresholds} // Pass thresholds from settings
 							/>
 						) : (
 							<Text
@@ -470,15 +473,11 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 	},
 	chartContainer: {
-		marginVertical: 10,
-		backgroundColor: "#fff",
-		borderRadius: 10,
-		padding: 10,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.1,
-		shadowRadius: 4,
-		elevation: 3,
+		marginVertical: 5, // Reduced margin
+		backgroundColor: "transparent", // Make background transparent
+		borderRadius: 0, // Remove border radius
+		padding: 0, // Remove padding
+		// Remove all shadow properties
 	},
 	chartModeSelector: {
 		flexDirection: "row",

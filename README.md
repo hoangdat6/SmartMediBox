@@ -8,55 +8,55 @@ SmartMediBox addresses the critical challenge of medication adherence by providi
 
 ## Key Features
 
-- **Automated Medication Reminders** - Audio and visual alerts when it's time to take medicine
-- **Smart Compartment System** - Automatic opening of the correct medicine compartment at scheduled times
-- **Environmental Monitoring** - Temperature and humidity monitoring with active humidity control
-- **Mobile Application** - Remote monitoring and control via React Native app
-- **Real-time Synchronization** - Firebase integration for real-time data and notifications
-- **Medication History** - Track and analyze medication adherence patterns
+-   **Automated Medication Reminders** - Audio and visual alerts when it's time to take medicine
+-   **Smart Compartment System** - Automatic opening of the correct medicine compartment at scheduled times
+-   **Environmental Monitoring** - Temperature and humidity monitoring with active humidity control
+-   **Mobile Application** - Remote monitoring and control via React Native app
+-   **Real-time Synchronization** - Firebase integration for real-time data and notifications
+-   **Medication History** - Track and analyze medication adherence patterns
 
 ## Hardware Components
 
-| Component | Quantity | Purpose |
-|-----------|----------|---------|
-| ESP8266 NodeMCU | 1 | Main processor, WiFi connectivity |
-| DS3231 RTC | 1 | Real-time clock |
-| 16x2 I2C LCD | 1 | Display information and alerts |
-| Push Button | 1 | Manual compartment opening (interrupt) |
-| SG90 Servo Motors | 3 | Open morning/noon/evening compartments |
-| DHT11 Sensor | 1 | Temperature and humidity monitoring |
-| Mini Fan | 1 | Humidity reduction |
-| Buzzer | 1 | Sound alerts |
-| NPN Transistors (2N2222) | 2 | Control fan and speaker |
-| 5V Power Supply/Battery | 1 | Power the system |
+| Component                | Quantity | Purpose                                |
+| ------------------------ | -------- | -------------------------------------- |
+| ESP8266 NodeMCU          | 1        | Main processor, WiFi connectivity      |
+| DS3231 RTC               | 1        | Real-time clock                        |
+| 16x2 I2C LCD             | 1        | Display information and alerts         |
+| Push Button              | 1        | Manual compartment opening (interrupt) |
+| SG90 Servo Motors        | 3        | Open morning/noon/evening compartments |
+| DHT11 Sensor             | 1        | Temperature and humidity monitoring    |
+| Mini Fan                 | 1        | Humidity reduction                     |
+| Buzzer                   | 1        | Sound alerts                           |
+| NPN Transistors (2N2222) | 2        | Control fan and speaker                |
+| 5V Power Supply/Battery  | 1        | Power the system                       |
 
 ## Hardware Connection Diagram
 
-| Device | Function | ESP8266 Connection | Notes |
-|--------|----------|-------------------|-------|
-| Push Button | Send open signal | D3 (GPIO0) | Uses attachInterrupt() |
-| DS3231 | Real-time clock | SDA → D2 (GPIO4)<br>SCL → D1 (GPIO5) | I2C protocol, shared with LCD |
-| 16x2 I2C LCD | Display time and alerts | SDA → D2 (GPIO4)<br>SCL → D1 (GPIO5) | I2C protocol |
-| Morning Servo | Open morning compartment | D5 (GPIO14) | PWM control |
-| Noon Servo | Open noon compartment | D6 (GPIO12) | PWM control |
-| Evening Servo | Open evening compartment | D7 (GPIO13) | PWM control |
-| DHT11 | Temperature/humidity sensor | D0 (GPIO16) | Digital read |
-| Mini Fan | Reduce humidity | D8 (GPIO15) | Controlled via NPN transistor |
-| Buzzer | Sound alerts | A0 | Via transistor if high power needed |
+| Device        | Function                    | ESP8266 Connection                   | Notes                               |
+| ------------- | --------------------------- | ------------------------------------ | ----------------------------------- |
+| Push Button   | Send open signal            | D3 (GPIO0)                           | Uses attachInterrupt()              |
+| DS3231        | Real-time clock             | SDA → D2 (GPIO4)<br>SCL → D1 (GPIO5) | I2C protocol, shared with LCD       |
+| 16x2 I2C LCD  | Display time and alerts     | SDA → D2 (GPIO4)<br>SCL → D1 (GPIO5) | I2C protocol                        |
+| Morning Servo | Open morning compartment    | D5 (GPIO14)                          | PWM control                         |
+| Noon Servo    | Open noon compartment       | D6 (GPIO12)                          | PWM control                         |
+| Evening Servo | Open evening compartment    | D7 (GPIO13)                          | PWM control                         |
+| DHT11         | Temperature/humidity sensor | D0 (GPIO16)                          | Digital read                        |
+| Mini Fan      | Reduce humidity             | D8 (GPIO15)                          | Controlled via NPN transistor       |
+| Buzzer        | Sound alerts                | A0                                   | Via transistor if high power needed |
 
 ## Technologies Used
 
-| Category | Technology/Protocol |
-|----------|-------------------|
-| IoT Communication | Firebase Realtime Database (WebSocket) |
-| Microcontroller | ESP8266 NodeMCU |
-| Real-time Clock | DS3231 |
-| Device Communication | I2C (LCD, DS3231) |
-| Sensor Communication | Digital (DHT11, Push Button) |
-| Device Control | PWM (Servo), GPIO with transistors (Fan, Buzzer) |
-| Mobile Application | React Native + Firebase SDK |
-| Data Storage | Firebase Cloud |
-| Notifications | Firebase Cloud Messaging (FCM) |
+| Category             | Technology/Protocol                              |
+| -------------------- | ------------------------------------------------ |
+| IoT Communication    | Firebase Realtime Database (WebSocket)           |
+| Microcontroller      | ESP8266 NodeMCU                                  |
+| Real-time Clock      | DS3231                                           |
+| Device Communication | I2C (LCD, DS3231)                                |
+| Sensor Communication | Digital (DHT11, Push Button)                     |
+| Device Control       | PWM (Servo), GPIO with transistors (Fan, Buzzer) |
+| Mobile Application   | React Native + Firebase SDK                      |
+| Data Storage         | Firebase Cloud                                   |
+| Notifications        | Firebase Cloud Messaging (FCM)                   |
 
 ## Software Architecture
 
@@ -84,27 +84,37 @@ SmartMediBox/
 
 1. Install dependencies
 
-   ```bash
-   npm install
-   ```
+    ```bash
+    npm install
+    ```
 
 2. Start the application
 
-   ```bash
-   npx expo start
-   ```
+    ```bash
+    npx expo start
+    ```
+
+3. Build app
+
+    ```bash
+    npx expo prebuild
+    cd cd android
+    ./gradlew assembleRelease
+    adb install -r android/app/build/outputs/apk/release/app-release.apk
+    ```
 
 After launching, you can open the app in:
-- [Development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go)
+
+-   [Development build](https://docs.expo.dev/develop/development-builds/introduction/)
+-   [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+-   [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+-   [Expo Go](https://expo.dev/go)
 
 ## Implementation Timeline
 
-- **Phase 1** (Completed): Basic app UI and medication tracking
-- **Phase 2** (Current): Hardware integration and reminder system
-- **Phase 3** (Upcoming): Analytics dashboard and caregiver features
+-   **Phase 1** (Completed): Basic app UI and medication tracking
+-   **Phase 2** (Current): Hardware integration and reminder system
+-   **Phase 3** (Upcoming): Analytics dashboard and caregiver features
 
 ## Contributing
 

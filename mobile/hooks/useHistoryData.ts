@@ -1,4 +1,5 @@
 import { subscribeToData } from "@/services/firebaseService";
+import { TimeOfDay } from "@/types";
 import { format, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 
@@ -6,7 +7,9 @@ import { useEffect, useState } from "react";
 export interface HistoryValue {
 	temperature: number;
 	humidity: number;
-	cabinetOpened?: string;
+	temperatureThreshold?: number;
+	humidityThreshold?: number;
+	cabinetOpened?: TimeOfDay;
 }
 
 export interface HistoryData {

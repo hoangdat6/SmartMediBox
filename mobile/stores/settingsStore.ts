@@ -36,17 +36,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 					settings: {
 						reminderTimes: {
 							morning: {
-								available: true,
+								drank: true,
 								start: "06:00",
 								end: "08:00",
 							},
 							noon: {
-								available: true,
+								drank: true,
 								start: "11:30",
 								end: "13:30",
 							},
 							evening: {
-								available: true,
+								drank: true,
 								start: "18:00",
 								end: "20:00",
 							},

@@ -8,13 +8,25 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { TimeOfDay } from "@/types";
 import { getCurrentTimeOfDayFromSettings } from "@/utils/timeUtils";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function DashboardScreen() {
 	const { colors } = useTheme();
-	const { settings } = useSettingsStore();
+	const { settings, fetchSettings } = useSettingsStore();
+	const [currentTimeOfDay, setCurrentTimeOfDay] = useState<TimeOfDay | null>(
+		getCurrentTimeOfDayFromSettings()
+	);
+	// Replace the useEffect with useFocusEffect to fetch settings when screen comes into focus
+	useFocusEffect(
+		useCallback(() => {
+			fetchSettings();
+			setCurrentTimeOfDay(getCurrentTimeOfDayFromSettings());
+		}, [fetchSettings, setCurrentTimeOfDay])
+	);
+
 	const {
 		fanStatus,
 		toggleFan,
@@ -26,9 +38,6 @@ export default function DashboardScreen() {
 		loading,
 		error,
 	} = useFirebaseData();
-	const [currentTimeOfDay, setCurrentTimeOfDay] = useState<TimeOfDay | null>(
-		getCurrentTimeOfDayFromSettings()
-	);
 
 	// Refresh the current time of day every minute
 	useEffect(() => {
@@ -225,6 +234,9 @@ export default function DashboardScreen() {
 						isCurrent={currentTimeOfDay === "morning"}
 						isDisabled={!isCompartmentAvailable("morning")}
 						onPress={handleToggleCompartment}
+						hasTakenMeds={
+							settings?.reminderTimes.morning.drank || false
+						}
 					/>
 					<CompartmentBox
 						title="Buổi trưa"
@@ -233,6 +245,9 @@ export default function DashboardScreen() {
 						isCurrent={currentTimeOfDay === "noon"}
 						isDisabled={!isCompartmentAvailable("noon")}
 						onPress={handleToggleCompartment}
+						hasTakenMeds={
+							settings?.reminderTimes.noon.drank || false
+						}
 					/>
 					<CompartmentBox
 						title="Buổi tối"
@@ -241,6 +256,9 @@ export default function DashboardScreen() {
 						isCurrent={currentTimeOfDay === "evening"}
 						isDisabled={!isCompartmentAvailable("evening")}
 						onPress={handleToggleCompartment}
+						hasTakenMeds={
+							settings?.reminderTimes.evening.drank || false
+						}
 					/>
 				</View>
 

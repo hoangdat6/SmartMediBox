@@ -7,6 +7,7 @@ import { FromTo, TimeOfDay } from "@/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Slider from "@react-native-community/slider";
+import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
 	Alert,
@@ -107,6 +108,7 @@ const TimeSettingRow = ({
 export default function SettingsScreen() {
 	const { colors, theme, toggleTheme } = useTheme();
 	const {
+		fetchSettings,
 		settings,
 		updateReminderTime,
 		toggleReminderEnability,
@@ -115,6 +117,14 @@ export default function SettingsScreen() {
 		loading,
 		saveSettings,
 	} = useSettingsStore();
+
+	// Replace the useEffect with useFocusEffect to fetch settings when screen comes into focus
+	useFocusEffect(
+		useCallback(() => {
+			console.log("Settings screen in focus - fetching latest settings");
+			fetchSettings();
+		}, [fetchSettings])
+	);
 
 	const [showPicker, setShowPicker] = useState(false);
 	const [currentEditingTime, setCurrentEditingTime] = useState<
@@ -349,9 +359,9 @@ export default function SettingsScreen() {
 							timeRange={
 								settings?.reminderTimes?.morning || {
 									enabled: true,
-									available:
+									drank:
 										settings?.reminderTimes?.morning
-											?.available ?? true,
+											?.drank ?? true,
 									start: "06:00",
 									end: "08:00",
 								}
@@ -372,9 +382,9 @@ export default function SettingsScreen() {
 							timeRange={
 								settings?.reminderTimes?.noon || {
 									enabled: true,
-									available:
-										settings?.reminderTimes?.noon
-											?.available ?? true,
+									drank:
+										settings?.reminderTimes?.noon?.drank ??
+										true,
 									start: "11:30",
 									end: "13:30",
 								}
@@ -393,9 +403,9 @@ export default function SettingsScreen() {
 							timeRange={
 								settings?.reminderTimes?.evening || {
 									enabled: true,
-									available:
+									drank:
 										settings?.reminderTimes?.evening
-											?.available ?? true,
+											?.drank ?? true,
 									start: "18:00",
 									end: "20:00",
 								}

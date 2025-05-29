@@ -48,12 +48,12 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="monitor"
+				name="history"
 				options={{
-					title: "Monitor",
+					title: "History",
 					tabBarIcon: ({ color }) => (
 						<MaterialCommunityIcons
-							name="chart-line"
+							name="chart-bar"
 							size={28}
 							color={color}
 						/>
@@ -61,9 +61,9 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="history"
+				name="history-list"
 				options={{
-					title: "History",
+					title: "History List",
 					tabBarIcon: ({ color }) => (
 						<MaterialCommunityIcons
 							name="chart-bar"

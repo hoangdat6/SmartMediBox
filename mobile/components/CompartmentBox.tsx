@@ -16,6 +16,7 @@ interface CompartmentBoxProps {
 	timeOfDay: TimeOfDay;
 	isCurrent: boolean;
 	isDisabled?: boolean;
+	hasTakenMeds: boolean;
 	onPress?: (timeOfDay: TimeOfDay, timestamp?: string) => void;
 }
 
@@ -25,6 +26,7 @@ export function CompartmentBox({
 	timeOfDay,
 	isCurrent,
 	isDisabled = false,
+	hasTakenMeds,
 	onPress,
 }: CompartmentBoxProps) {
 	const { colors, theme } = useTheme();
@@ -156,14 +158,12 @@ export function CompartmentBox({
 					isOpen ? styles.openStatus : styles.closedStatus,
 				]}
 			>
-				{isDisabled
-					? "Tắt"
-					: isOpen
-					? "Mở"
-					: isCurrent
-					? "Hiện tại"
-					: "Đóng"}
+				{isDisabled ? "Tắt" : isOpen ? "Mở" : "Đóng"}
 			</Text>
+
+			{hasTakenMeds && (
+				<Text style={styles.takenText}>Đã uống thuốc</Text>
+			)}
 		</View>
 	);
 }
@@ -217,5 +217,11 @@ const styles = StyleSheet.create({
 	},
 	closedStatus: {
 		color: "#9E9E9E",
+	},
+	takenText: {
+		fontSize: 10,
+		color: "#4CAF50",
+		marginTop: 4,
+		textAlign: "center",
 	},
 });

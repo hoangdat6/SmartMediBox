@@ -18,7 +18,7 @@ export const getCurrentTimeOfDayFromSettings = (): TimeOfDay | null => {
 	const { morning, noon, evening } = settings.reminderTimes;
 
 	// Check if current time falls within any of the defined periods
-	if (morning.available) {
+	if (morning.drank) {
 		const morningStart = timeToMinutes(morning.start);
 		const morningEnd = timeToMinutes(morning.end);
 		if (
@@ -29,7 +29,7 @@ export const getCurrentTimeOfDayFromSettings = (): TimeOfDay | null => {
 		}
 	}
 
-	if (noon.available) {
+	if (noon.drank) {
 		const noonStart = timeToMinutes(noon.start);
 		const noonEnd = timeToMinutes(noon.end);
 		if (
@@ -40,7 +40,7 @@ export const getCurrentTimeOfDayFromSettings = (): TimeOfDay | null => {
 		}
 	}
 
-	if (evening.available) {
+	if (evening.drank) {
 		const eveningStart = timeToMinutes(evening.start);
 		const eveningEnd = timeToMinutes(evening.end);
 		if (

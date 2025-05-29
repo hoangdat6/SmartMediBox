@@ -29,6 +29,11 @@ interface TimeSeriesChartProps {
 	focusOnLatest?: boolean;
 	maxPoints?: number; // Maximum number of points to display
 	dataType?: "temperature" | "humidity"; // Add dataType property
+	thresholds?: {
+		// Add thresholds prop
+		temperature?: number;
+		humidity?: number;
+	};
 }
 
 const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
@@ -44,6 +49,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	focusOnLatest = false,
 	maxPoints = 50,
 	dataType,
+	thresholds,
 }) => {
 	// Determine chart appearance based on dark/light mode
 	const textColor = darkMode ? "#E0E0E0" : "#333333";
@@ -74,9 +80,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
 	const screenWidth = Dimensions.get("window").width - 60; // Accounting for margins
 
-	// Calculate dynamic width based on data points - make it wider
+	// Calculate dynamic width based on data points - make it wider with more spacing
 	const dataCount = data.length;
-	const pointWidth = 40; // Increased width per data point for better readability
+	const pointWidth = 80; // Increased from 40 to 80 for more spacing between points
 	const minWidth = screenWidth;
 	const chartWidth = enableScrolling
 		? Math.max(dataCount * pointWidth, minWidth)
@@ -139,37 +145,57 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		}
 	}, [data, focusOnLatest, enableScrolling]);
 
-	// Format x-axis tick labels to show more precise time
+	// Format x-axis tick labels to show only up to seconds (no milliseconds)
 	const formatTick = (tick: any) => {
 		if (typeof tick === "string" && tick.length > 5) {
-			// If we have a timestamp with seconds (HH:mm:ss), highlight seconds
+			// If we have a timestamp with seconds (HH:mm:ss), only show up to seconds
 			const parts = tick.split(":");
 			if (parts.length === 3) {
-				// Return the full time with seconds highlighted
-				return `${parts[0]}:${parts[1]}:${parts[2]}`;
+				// Remove any milliseconds if present
+				const seconds = parts[2].split(".")[0];
+				return `${parts[0]}:${parts[1]}:${seconds}`;
 			}
 			return tick;
 		}
 		return tick;
 	};
 
-	// Format y-value for display
-	const formatDataValue = (y: number) => {
-		return y.toFixed(1) + (dataType === "temperature" ? "°C" : "%");
+	// Check if a value is abnormal (exceeds threshold)
+	const isAbnormalValue = (value: number): boolean => {
+		if (!thresholds) return false;
+
+		if (dataType === "temperature" && thresholds.temperature) {
+			return value >= thresholds.temperature;
+		}
+		if (dataType === "humidity" && thresholds.humidity) {
+			return value >= thresholds.humidity;
+		}
+		return false;
 	};
 
-	// Add data labels to points
-	const labeledData = data.map((point) => ({
-		...point,
-		label: formatDataValue(point.y),
-	}));
+	// Format y-value for display with abnormal indication
+	const formatDataValue = (y: number) => {
+		const baseValue =
+			y.toFixed(1) + (dataType === "temperature" ? "°C" : "%");
+		return isAbnormalValue(y) ? `${baseValue} (bất thường)` : baseValue;
+	};
 
-	// Create fixed y-axis chart
+	// Add data labels to points with abnormal indication
+	const labeledData = data.map((point) => {
+		const abnormal = isAbnormalValue(point.y);
+		return {
+			...point,
+			label: formatDataValue(point.y),
+			abnormal, // Add this flag for styling
+		};
+	});
+
+	// Fixed y-axis chart
 	const yAxisChart = (
 		<VictoryChart
-			width={60} // Width just for the y-axis
+			width={50} // Reduced width for y-axis
 			height={240}
-			padding={{ top: 30, right: 0, bottom: 60, left: 60 }}
+			padding={{ top: 20, right: 0, bottom: 50, left: 50 }}
 			theme={darkMode ? VictoryTheme.material : VictoryTheme.grayscale}
 			domain={{ y: calculateYDomain() }}
 		>
@@ -178,7 +204,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 				dependentAxis
 				label={yAxisLabel}
 				axisLabelComponent={
-					<VictoryLabel dy={-45} style={chartStyles.axisLabel} />
+					<VictoryLabel dy={-40} style={chartStyles.axisLabel} />
 				}
 				tickFormat={(t) => t.toFixed(1)}
 				style={{
@@ -195,7 +221,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		<VictoryChart
 			width={chartWidth}
 			height={240}
-			padding={{ top: 30, right: 30, bottom: 60, left: 0 }} // No left padding as y-axis is separate
+			padding={{ top: 20, right: 30, bottom: 50, left: 0 }} // Increased right padding
 			theme={darkMode ? VictoryTheme.material : VictoryTheme.grayscale}
 			domain={{ y: calculateYDomain() }}
 			scale={{ x: "time" }}
@@ -204,7 +230,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 			<VictoryAxis
 				label={xAxisLabel}
 				axisLabelComponent={
-					<VictoryLabel dy={40} style={chartStyles.axisLabel} />
+					<VictoryLabel dy={35} style={chartStyles.axisLabel} />
 				}
 				style={{
 					axis: { stroke: darkMode ? "#555" : "#ccc" },
@@ -213,11 +239,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 						...chartStyles.axisTickLabels,
 						angle: 45,
 						textAnchor: "start",
-						fontSize: 8,
+						fontSize: 9,
+						fontWeight: "bold",
 					},
 				}}
 				tickFormat={formatTick}
-				tickCount={Math.min(15, Math.max(5, Math.floor(dataCount / 5)))}
+				tickCount={Math.min(10, Math.max(5, Math.floor(dataCount / 8)))} // Reduced number of ticks
 			/>
 
 			{/* Empty Y Axis (to maintain spacing) */}
@@ -256,19 +283,39 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 					data={labeledData}
 					x="x"
 					y="y"
-					style={chartStyles.scatter}
+					style={{
+						data: ({ datum }) => {
+							// If the point is abnormal, use a different color or style
+							if (datum.abnormal) {
+								return {
+									fill: "#FF0000", // Red color for abnormal points
+									stroke: darkMode ? "#121212" : "#FFFFFF",
+									strokeWidth: 1.5,
+									size: 6, // Slightly larger
+								};
+							}
+							// Otherwise, use the default style
+							return {
+								fill: color,
+								stroke: darkMode ? "#121212" : "#FFFFFF",
+								strokeWidth: 1.5,
+								size: 5,
+							};
+						},
+						labels: chartStyles.scatter.labels,
+					}}
 					size={5}
 					labels={({ datum }) => datum.label}
 					labelComponent={
 						<VictoryTooltip
 							active={true} // Always show the tooltips
-							flyoutStyle={{
-								stroke: color,
-								strokeWidth: 1,
+							flyoutStyle={({ datum }) => ({
+								stroke: datum.abnormal ? "#FF0000" : color,
+								strokeWidth: datum.abnormal ? 2 : 1,
 								fill: darkMode
 									? "rgba(33, 33, 33, 0.9)"
 									: "rgba(255, 255, 255, 0.9)",
-							}}
+							})}
 							flyoutPadding={{
 								top: 2,
 								bottom: 2,
@@ -324,19 +371,14 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
 const styles = StyleSheet.create({
 	container: {
-		borderRadius: 10,
-		padding: 10,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.1,
-		shadowRadius: 4,
-		elevation: 3,
-		marginVertical: 10,
+		borderRadius: 0, // Remove border radius
+		padding: 5, // Reduce padding
+		marginVertical: 5, // Reduce margin
 	},
 	title: {
 		fontSize: 16,
 		fontWeight: "bold",
-		marginBottom: 10,
+		marginBottom: 5, // Reduce margin
 		textAlign: "center",
 	},
 	chartContainer: {
@@ -344,7 +386,7 @@ const styles = StyleSheet.create({
 		alignItems: "flex-start",
 	},
 	yAxisContainer: {
-		width: 60,
+		width: 50, // Reduced width
 		height: 240,
 	},
 	mainChartContainer: {
