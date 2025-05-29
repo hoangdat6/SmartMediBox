@@ -42,7 +42,7 @@ export function useFirebaseData(): FirebaseDataResult {
 					);
 					setTemperatureData(data.temperature || 0);
 					setHumidityData(data.humidity || 0);
-					setFanStatus(data.fan || false);
+					setFanStatus(data.offlinefan || false);
 				}
 				setLoading(false);
 			} catch (err: any) {

@@ -14,7 +14,8 @@ export interface StatusData {
 	cabinet: CabinetStatus;
 	temperature: number;
 	humidity: number;
-	fan: boolean;
+	offlinefan: boolean;
+	onlinefan: boolean;
 	lastUpdated: string;
 }
 

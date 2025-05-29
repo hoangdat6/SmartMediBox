@@ -4,5 +4,10 @@
 		"source.organizeImports": "explicit",
 		"source.sortMembers": "explicit"
 	},
-	"java.compile.nullAnalysis.mode": "automatic"
+	"java.compile.nullAnalysis.mode": "automatic",
+	"files.associations": {
+		"*.dbclient-js": "javascript",
+		"*.embeddedhtml": "html",
+		"random": "cpp"
+	}
 }
