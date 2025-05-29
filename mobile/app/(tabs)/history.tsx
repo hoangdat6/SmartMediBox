@@ -23,6 +23,9 @@ interface OpeningEvent {
 	cabinet: TimeOfDay;
 }
 
+// Define a type for time scale options
+type TimeScale = "realtime" | "day" | "hour";
+
 export default function HistoryScreen() {
 	const { colors, theme } = useTheme();
 	const { historyData, loading, error } = useHistoryData();
@@ -43,6 +46,9 @@ export default function HistoryScreen() {
 		return format(new Date(), "yyyy-MM-dd");
 	});
 
+	// Add state for time scale selection
+	const [timeScale, setTimeScale] = useState<TimeScale>("realtime");
+
 	// Update selectedDate when availableDates changes
 	useEffect(() => {
 		if (
@@ -57,8 +63,167 @@ export default function HistoryScreen() {
 		"temperature"
 	);
 
+	// Function to aggregate data by hour (for day view)
+	const aggregateDataByHour = (): TimeSeriesDataPoint[] => {
+		if (!historyData) return [];
+
+		// Create an object to store aggregated data for each hour
+		const hourlyData: Record<
+			string,
+			{
+				sum: number;
+				count: number;
+				thresholds: { temperature: number; humidity: number };
+			}
+		> = {};
+		// Process all available dates
+		Object.keys(historyData).forEach((date) => {
+			// For each timepoint in the date
+			Object.entries(historyData[date]).forEach(([time, values]) => {
+				// Extract hour from time (format: HH:MM:SS)
+				const hourMatch = time.match(/^(\d{1,2}):/);
+				if (!hourMatch) return;
+
+				const hour = hourMatch[1].padStart(2, "0");
+				const key = `${hour}:00`;
+
+				// Initialize if not exists
+				if (!hourlyData[key]) {
+					hourlyData[key] = {
+						sum: 0,
+						count: 0,
+						thresholds: {
+							temperature: values.temperatureThreshold || 0,
+							humidity: values.humidityThreshold || 0,
+						},
+					};
+				}
+
+				// Add the current value to the sum based on display mode
+				const value =
+					displayMode === "temperature"
+						? values.temperature
+						: values.humidity;
+				if (typeof value === "number" && !isNaN(value)) {
+					hourlyData[key].sum += value;
+					hourlyData[key].count += 1;
+
+					// Update thresholds with the latest values
+					if (values.temperatureThreshold) {
+						hourlyData[key].thresholds.temperature =
+							values.temperatureThreshold;
+					}
+					if (values.humidityThreshold) {
+						hourlyData[key].thresholds.humidity =
+							values.humidityThreshold;
+					}
+				}
+			});
+		});
+
+		// Convert to array of data points
+		return Object.entries(hourlyData)
+			.map(([hour, data]) => ({
+				x: hour,
+				y: data.count > 0 ? data.sum / data.count : 0,
+				temperatureThreshold: data.thresholds.temperature,
+				humidityThreshold: data.thresholds.humidity,
+			}))
+			.sort((a, b) => {
+				// Sort by hour
+				const hourA = parseInt(a.x.toString().split(":")[0]);
+				const hourB = parseInt(b.x.toString().split(":")[0]);
+				return hourA - hourB;
+			});
+	};
+
+	// Function to aggregate data by minute (for hour view)
+	const aggregateDataByMinute = (): TimeSeriesDataPoint[] => {
+		if (!historyData) return [];
+
+		// Create an object to store aggregated data for each minute
+		const minutelyData: Record<
+			string,
+			{
+				sum: number;
+				count: number;
+				thresholds: { temperature: number; humidity: number };
+			}
+		> = {};
+
+		// Process all available dates
+		Object.keys(historyData).forEach((date) => {
+			// For each timepoint in the date
+			Object.entries(historyData[date]).forEach(([time, values]) => {
+				// Extract hour and minute from time (format: HH:MM:SS)
+				const timeMatch = time.match(/^(\d{1,2}):(\d{1,2}):/);
+				if (!timeMatch) return;
+
+				const hour = timeMatch[1].padStart(2, "0");
+				const minute = timeMatch[2].padStart(2, "0");
+				const key = `${hour}:${minute}`;
+
+				// Initialize if not exists
+				if (!minutelyData[key]) {
+					minutelyData[key] = {
+						sum: 0,
+						count: 0,
+						thresholds: {
+							temperature: values.temperatureThreshold || 0,
+							humidity: values.humidityThreshold || 0,
+						},
+					};
+				}
+
+				// Add the current value to the sum based on display mode
+				const value =
+					displayMode === "temperature"
+						? values.temperature
+						: values.humidity;
+				if (typeof value === "number" && !isNaN(value)) {
+					minutelyData[key].sum += value;
+					minutelyData[key].count += 1;
+
+					// Update thresholds with the latest values
+					if (values.temperatureThreshold) {
+						minutelyData[key].thresholds.temperature =
+							values.temperatureThreshold;
+					}
+					if (values.humidityThreshold) {
+						minutelyData[key].thresholds.humidity =
+							values.humidityThreshold;
+					}
+				}
+			});
+		});
+
+		// Convert to array of data points
+		return Object.entries(minutelyData)
+			.map(([timeKey, data]) => ({
+				x: timeKey,
+				y: data.count > 0 ? data.sum / data.count : 0,
+				temperatureThreshold: data.thresholds.temperature,
+				humidityThreshold: data.thresholds.humidity,
+			}))
+			.sort((a, b) => {
+				// Sort by hour and minute
+				const [hourA, minuteA] = a.x.toString().split(":").map(Number);
+				const [hourB, minuteB] = b.x.toString().split(":").map(Number);
+				if (hourA !== hourB) return hourA - hourB;
+				return minuteA - minuteB;
+			});
+	};
+
 	// Function to format chart data from history - limit to most recent 50 points
 	const getChartData = (): TimeSeriesDataPoint[] => {
+		// If using day or hour view, return aggregated data
+		if (timeScale === "day") {
+			return aggregateDataByHour();
+		} else if (timeScale === "hour") {
+			return aggregateDataByMinute();
+		}
+
+		// Real-time view (original implementation)
 		if (!historyData || !historyData[selectedDate]) return [];
 
 		// Extract timepoints and values for selected date and mode
@@ -169,6 +334,36 @@ export default function HistoryScreen() {
 		}
 	};
 
+	// Get title for chart based on time scale
+	const getChartTitle = (): string => {
+		switch (timeScale) {
+			case "day":
+				return displayMode === "temperature"
+					? "Nhiệt độ trung bình theo giờ (°C)"
+					: "Độ ẩm trung bình theo giờ (%)";
+			case "hour":
+				return displayMode === "temperature"
+					? "Nhiệt độ trung bình theo phút (°C)"
+					: "Độ ẩm trung bình theo phút (%)";
+			default:
+				return displayMode === "temperature"
+					? "Nhiệt độ (°C)"
+					: "Độ ẩm (%)";
+		}
+	};
+
+	// Get x-axis label based on time scale
+	const getXAxisLabel = (): string => {
+		switch (timeScale) {
+			case "day":
+				return "Giờ trong ngày";
+			case "hour":
+				return "Phút trong giờ";
+			default:
+				return "Thời gian";
+		}
+	};
+
 	return (
 		<SafeAreaView
 			style={[styles.container, { backgroundColor: colors.background }]}
@@ -237,6 +432,105 @@ export default function HistoryScreen() {
 								size={24}
 								color={colors.text}
 							/>
+						</TouchableOpacity>
+					</View>
+
+					{/* Time Scale Selector */}
+					<View style={styles.timeScaleSelector}>
+						<TouchableOpacity
+							style={[
+								styles.scaleButton,
+								{
+									backgroundColor: isDarkMode
+										? "#333"
+										: "#f0f0f0",
+								},
+								timeScale === "realtime" && {
+									backgroundColor: isDarkMode
+										? "#444"
+										: "#e0e0e0",
+								},
+							]}
+							onPress={() => setTimeScale("realtime")}
+						>
+							<Text
+								style={[
+									styles.scaleText,
+									{
+										color: isDarkMode ? "#CCC" : "#666",
+									},
+									timeScale === "realtime" && {
+										color: isDarkMode ? "#FFF" : "#333",
+										fontWeight: "bold",
+									},
+								]}
+							>
+								Thời gian thực
+							</Text>
+						</TouchableOpacity>
+
+						<TouchableOpacity
+							style={[
+								styles.scaleButton,
+								{
+									backgroundColor: isDarkMode
+										? "#333"
+										: "#f0f0f0",
+								},
+								timeScale === "hour" && {
+									backgroundColor: isDarkMode
+										? "#444"
+										: "#e0e0e0",
+								},
+							]}
+							onPress={() => setTimeScale("hour")}
+						>
+							<Text
+								style={[
+									styles.scaleText,
+									{
+										color: isDarkMode ? "#CCC" : "#666",
+									},
+									timeScale === "hour" && {
+										color: isDarkMode ? "#FFF" : "#333",
+										fontWeight: "bold",
+									},
+								]}
+							>
+								Theo phút
+							</Text>
+						</TouchableOpacity>
+
+						<TouchableOpacity
+							style={[
+								styles.scaleButton,
+								{
+									backgroundColor: isDarkMode
+										? "#333"
+										: "#f0f0f0",
+								},
+								timeScale === "day" && {
+									backgroundColor: isDarkMode
+										? "#444"
+										: "#e0e0e0",
+								},
+							]}
+							onPress={() => setTimeScale("day")}
+						>
+							<Text
+								style={[
+									styles.scaleText,
+									{
+										color: isDarkMode ? "#CCC" : "#666",
+									},
+									timeScale === "day" && {
+										color: isDarkMode ? "#FFF" : "#333",
+										fontWeight: "bold",
+									},
+								]}
+							>
+								Theo giờ
+							</Text>
 						</TouchableOpacity>
 					</View>
 
@@ -315,12 +609,8 @@ export default function HistoryScreen() {
 						{getChartData().length > 0 ? (
 							<TimeSeriesChart
 								data={getChartData()}
-								title={
-									displayMode === "temperature"
-										? "Nhiệt độ (°C)"
-										: "Độ ẩm (%)"
-								}
-								xAxisLabel="Thời gian"
+								title={getChartTitle()}
+								xAxisLabel={getXAxisLabel()}
 								yAxisLabel={
 									displayMode === "temperature" ? "°C" : "%"
 								}
@@ -333,9 +623,10 @@ export default function HistoryScreen() {
 								showDataPoints={true} // Always show data points for better visibility
 								showGradient={true}
 								enableScrolling={true}
-								maxPoints={50} // Specify max points to show
+								maxPoints={timeScale === "realtime" ? 50 : 100} // More points for aggregated views
 								dataType={displayMode} // Pass the current display mode as dataType
 								thresholds={settings?.alertThresholds} // Pass thresholds from settings
+								timeScale={timeScale} // Pass the current time scale
 							/>
 						) : (
 							<Text
@@ -351,72 +642,84 @@ export default function HistoryScreen() {
 						)}
 					</View>
 
-					<Text style={[styles.subheading, { color: colors.text }]}>
-						Sự kiện mở ngăn thuốc
-					</Text>
+					{timeScale === "realtime" && (
+						<>
+							<Text
+								style={[
+									styles.subheading,
+									{ color: colors.text },
+								]}
+							>
+								Sự kiện mở ngăn thuốc
+							</Text>
 
-					{getOpeningEvents().length > 0 ? (
-						<View
-							style={[
-								styles.eventsList,
-								{ backgroundColor: colors.card },
-							]}
-						>
-							{getOpeningEvents().map((event, index) => (
+							{getOpeningEvents().length > 0 ? (
 								<View
-									key={index}
 									style={[
-										styles.eventItem,
-										{
-											borderBottomColor: isDarkMode
-												? "#333"
-												: "#f0f0f0",
-										},
+										styles.eventsList,
+										{ backgroundColor: colors.card },
 									]}
 								>
-									<MaterialCommunityIcons
-										name="pill"
-										size={20}
-										color={colors.primary}
-										style={styles.eventIcon}
-									/>
-									<View style={styles.eventDetails}>
-										<Text
+									{getOpeningEvents().map((event, index) => (
+										<View
+											key={index}
 											style={[
-												styles.eventTime,
-												{ color: colors.text },
-											]}
-										>
-											{event.time}
-										</Text>
-										<Text
-											style={[
-												styles.eventText,
+												styles.eventItem,
 												{
-													color: isDarkMode
-														? "#AAA"
-														: "#666",
+													borderBottomColor:
+														isDarkMode
+															? "#333"
+															: "#f0f0f0",
 												},
 											]}
 										>
-											Ngăn thuốc{" "}
-											{getCabinetName(event.cabinet)} đã
-											được mở
-										</Text>
-									</View>
+											<MaterialCommunityIcons
+												name="pill"
+												size={20}
+												color={colors.primary}
+												style={styles.eventIcon}
+											/>
+											<View style={styles.eventDetails}>
+												<Text
+													style={[
+														styles.eventTime,
+														{ color: colors.text },
+													]}
+												>
+													{event.time}
+												</Text>
+												<Text
+													style={[
+														styles.eventText,
+														{
+															color: isDarkMode
+																? "#AAA"
+																: "#666",
+														},
+													]}
+												>
+													Ngăn thuốc{" "}
+													{getCabinetName(
+														event.cabinet
+													)}{" "}
+													đã được mở
+												</Text>
+											</View>
+										</View>
+									))}
 								</View>
-							))}
-						</View>
-					) : (
-						<Text
-							style={[
-								styles.noDataText,
-								{ color: isDarkMode ? "#AAA" : "#666" },
-							]}
-						>
-							Không có sự kiện mở ngăn nào được ghi lại cho ngày
-							này
-						</Text>
+							) : (
+								<Text
+									style={[
+										styles.noDataText,
+										{ color: isDarkMode ? "#AAA" : "#666" },
+									]}
+								>
+									Không có sự kiện mở ngăn nào được ghi lại
+									cho ngày này
+								</Text>
+							)}
+						</>
 					)}
 				</ScrollView>
 			)}
@@ -424,7 +727,7 @@ export default function HistoryScreen() {
 	);
 }
 
-// Styles remain the same
+// Update styles to include new time scale selector
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
@@ -476,6 +779,22 @@ const styles = StyleSheet.create({
 	dateText: {
 		fontSize: 16,
 		fontWeight: "bold",
+	},
+	timeScaleSelector: {
+		flexDirection: "row",
+		marginBottom: 15,
+	},
+	scaleButton: {
+		flex: 1,
+		paddingVertical: 10,
+		alignItems: "center",
+		backgroundColor: "#f0f0f0",
+		borderRadius: 5,
+		marginHorizontal: 3,
+	},
+	scaleText: {
+		fontSize: 12,
+		color: "#666",
 	},
 	chartContainer: {
 		marginVertical: 5, // Reduced margin

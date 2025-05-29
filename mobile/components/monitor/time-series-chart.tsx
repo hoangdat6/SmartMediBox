@@ -36,6 +36,7 @@ interface TimeSeriesChartProps {
 		temperature?: number;
 		humidity?: number;
 	};
+	timeScale?: "realtime" | "day" | "hour"; // Add timeScale property
 }
 
 const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
@@ -52,6 +53,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	maxPoints = 50,
 	dataType,
 	thresholds,
+	timeScale = "realtime",
 }) => {
 	// Determine chart appearance based on dark/light mode
 	const textColor = darkMode ? "#E0E0E0" : "#333333";
@@ -64,7 +66,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 	const calculateYDomain = (): [number, number] => {
 		// Return fixed ranges based on dataType
 		if (dataType === "temperature") {
-			return [20, 40]; // Fixed range for temperature (°C)
+			return [25, 40]; // Fixed range for temperature (°C)
 		} else if (dataType === "humidity") {
 			return [60, 90]; // Fixed range for humidity (%)
 		}
@@ -84,7 +86,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
 	// Calculate dynamic width based on data points - make it wider with more spacing
 	const dataCount = data.length;
-	const pointWidth = 80; // Increased from 40 to 80 for more spacing between points
+	const pointWidth = timeScale === "realtime" ? 80 : 60; // Adjust spacing based on time scale
 	const minWidth = screenWidth;
 	const chartWidth = enableScrolling
 		? Math.max(dataCount * pointWidth, minWidth)
@@ -147,19 +149,28 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		}
 	}, [data, focusOnLatest, enableScrolling]);
 
-	// Format x-axis tick labels to show only up to seconds (no milliseconds)
+	// Format x-axis tick labels based on time scale
 	const formatTick = (tick: any) => {
-		if (typeof tick === "string" && tick.length > 5) {
-			// If we have a timestamp with seconds (HH:mm:ss), only show up to seconds
-			const parts = tick.split(":");
-			if (parts.length === 3) {
-				// Remove any milliseconds if present
-				const seconds = parts[2].split(".")[0];
-				return `${parts[0]}:${parts[1]}:${seconds}`;
-			}
-			return tick;
+		if (typeof tick !== "string") return tick;
+
+		switch (timeScale) {
+			case "day":
+				// For day view, format as "HH:00"
+				return `${tick.split(":")[0]}:00`;
+
+			case "hour":
+				// For hour view, format as "HH:MM"
+				return tick;
+
+			default:
+				// For realtime view, remove milliseconds
+				const parts = tick.split(":");
+				if (parts.length === 3) {
+					const seconds = parts[2].split(".")[0];
+					return `${parts[0]}:${parts[1]}:${seconds}`;
+				}
+				return tick;
 		}
-		return tick;
 	};
 
 	// Check if a value is abnormal (exceeds threshold)
@@ -189,13 +200,35 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		return false;
 	};
 
-	// Format y-value for display with abnormal indication
-	const formatDataValue = (y: number, dataPoint?: TimeSeriesDataPoint) => {
-		const baseValue =
-			y.toFixed(1) + (dataType === "temperature" ? "°C" : "%");
-		return isAbnormalValue(y, dataPoint)
-			? `${baseValue} (bất thường)`
-			: baseValue;
+	// Format label based on time scale with multiple lines - compact version
+	const formatLabel = (dataPoint: TimeSeriesDataPoint) => {
+		const value =
+			dataPoint.y.toFixed(1) + (dataType === "temperature" ? "°C" : "%");
+		const timeStr = dataPoint.x.toString();
+		const abnormal = isAbnormalValue(dataPoint.y, dataPoint);
+
+		// Format time string based on time scale (keep it simple)
+		let formattedTime = timeStr;
+		if (timeScale === "realtime") {
+			// For realtime view, format as HH:MM:SS without labels
+			const timeParts = timeStr.split(":");
+			if (timeParts.length >= 2) {
+				const seconds = timeParts[2]
+					? timeParts[2].split(".")[0]
+					: "00";
+				formattedTime = `${timeParts[0]}:${timeParts[1]}:${seconds}`;
+			}
+		}
+
+		// Create compact multi-line tooltip (just time and value)
+		let tooltipText = `${formattedTime}\n${value}`;
+
+		// Add minimal abnormal indicator if applicable
+		if (abnormal) {
+			tooltipText += "\n⚠️"; // Use an icon instead of text
+		}
+
+		return tooltipText;
 	};
 
 	// Add data labels to points with abnormal indication
@@ -203,7 +236,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		const abnormal = isAbnormalValue(point.y, point);
 		return {
 			...point,
-			label: formatDataValue(point.y, point),
+			label: formatLabel(point),
 			abnormal, // Add this flag for styling
 		};
 	});
@@ -234,6 +267,29 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		</VictoryChart>
 	);
 
+	// Get appropriate scale for x-axis based on time scale
+	const getXAxisScale = () => {
+		switch (timeScale) {
+			case "day":
+			case "hour":
+				return "time"; // Use time scale for day and hour views
+			default:
+				return "time"; // Use time scale for realtime view
+		}
+	};
+
+	// Determine the number of ticks based on time scale and data count
+	const getTickCount = () => {
+		switch (timeScale) {
+			case "day":
+				return Math.min(24, dataCount); // Show one tick per hour if possible
+			case "hour":
+				return Math.min(12, Math.max(6, Math.floor(dataCount / 5))); // Show fewer ticks for hour view
+			default:
+				return Math.min(10, Math.max(5, Math.floor(dataCount / 8))); // Default for realtime
+		}
+	};
+
 	// Main chart content (without y-axis)
 	const mainChartContent = (
 		<VictoryChart
@@ -242,7 +298,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 			padding={{ top: 20, right: 30, bottom: 50, left: 0 }} // Increased right padding
 			theme={darkMode ? VictoryTheme.material : VictoryTheme.grayscale}
 			domain={{ y: calculateYDomain() }}
-			scale={{ x: "time" }}
+			scale={{ x: getXAxisScale() }}
 		>
 			{/* X Axis */}
 			<VictoryAxis
@@ -262,7 +318,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 					},
 				}}
 				tickFormat={formatTick}
-				tickCount={Math.min(10, Math.max(5, Math.floor(dataCount / 8)))} // Reduced number of ticks
+				tickCount={getTickCount()}
 			/>
 
 			{/* Empty Y Axis (to maintain spacing) */}
@@ -326,23 +382,28 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 					labels={({ datum }) => datum.label}
 					labelComponent={
 						<VictoryTooltip
-							active={true} // Always show the tooltips
+							active={true}
 							flyoutStyle={({ datum }) => ({
 								stroke: datum.abnormal ? "#FF0000" : color,
 								strokeWidth: datum.abnormal ? 2 : 1,
 								fill: darkMode
-									? "rgba(33, 33, 33, 0.9)"
-									: "rgba(255, 255, 255, 0.9)",
+									? "rgba(33, 33, 33, 0.95)"
+									: "rgba(255, 255, 255, 0.95)",
 							})}
 							flyoutPadding={{
-								top: 2,
-								bottom: 2,
+								top: 3,
+								bottom: 3,
 								left: 5,
 								right: 5,
 							}}
-							pointerLength={5}
-							cornerRadius={3}
+							pointerLength={3}
+							cornerRadius={2}
 							renderInPortal={false}
+							style={{
+								fontSize: 9,
+								fontWeight: "normal",
+								lineHeight: 1.2,
+							}}
 						/>
 					}
 				/>
@@ -350,14 +411,25 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 		</VictoryChart>
 	);
 
+	// Update the title to include appropriate count information
+	const getDisplayTitle = () => {
+		if (!title) return "";
+
+		switch (timeScale) {
+			case "day":
+				return `${title} (${data.length} giờ)`;
+			case "hour":
+				return `${title} (${data.length} phút)`;
+			default:
+				return `${title} (${data.length} điểm dữ liệu mới nhất)`;
+		}
+	};
+
 	return (
 		<View style={[styles.container, { backgroundColor }]}>
 			{title && (
 				<Text style={[styles.title, { color: textColor }]}>
-					{title}{" "}
-					{data.length > 0
-						? `(${data.length} điểm dữ liệu mới nhất)`
-						: ""}
+					{getDisplayTitle()}
 				</Text>
 			)}
 

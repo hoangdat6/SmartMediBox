@@ -114,6 +114,7 @@ export default function SettingsScreen() {
 		toggleReminderEnability,
 		updateTemperatureThreshold,
 		updateHumidityThreshold,
+		updateThresholdClose, // Add the new method
 		loading,
 		saveSettings,
 	} = useSettingsStore();
@@ -480,6 +481,30 @@ export default function SettingsScreen() {
 								theme === "dark" ? "#555" : "#D3D3D3"
 							}
 							thumbTintColor="#03A9F4"
+						/>
+
+						{/* Add the new thresholdClose slider */}
+						<Text
+							style={[styles.sliderLabel, { color: colors.text }]}
+						>
+							Thời gian tự đóng: {settings?.thresholdClose || 30}{" "}
+							giây
+						</Text>
+						<Slider
+							style={styles.slider}
+							minimumValue={5}
+							maximumValue={120}
+							step={5}
+							value={settings?.thresholdClose || 30}
+							onValueChange={(value) => {
+								updateThresholdClose(value);
+								setHasChanges(true);
+							}}
+							minimumTrackTintColor="#81C784"
+							maximumTrackTintColor={
+								theme === "dark" ? "#555" : "#D3D3D3"
+							}
+							thumbTintColor="#4CAF50"
 						/>
 					</View>
 

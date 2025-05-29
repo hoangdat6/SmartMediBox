@@ -15,6 +15,7 @@ interface SettingsStore {
 	toggleReminderEnability: (timeOfDay: string) => void;
 	updateTemperatureThreshold: (value: number) => void;
 	updateHumidityThreshold: (value: number) => void;
+	updateThresholdClose: (seconds: number) => void; // New method
 	toggleAutoControl: () => void;
 	saveSettings: () => Promise<boolean>;
 }
@@ -53,6 +54,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 						},
 						alertThresholds: { temperature: 35, humidity: 65 },
 						autoControl: { enabled: true },
+						thresholdClose: 30, // Default to 30 seconds
 					},
 					loading: false,
 				});
@@ -133,6 +135,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 							...state.settings.alertThresholds,
 							humidity: value,
 						},
+				  }
+				: null,
+		}));
+	},
+
+	updateThresholdClose: (seconds: number) => {
+		set((state) => ({
+			settings: state.settings
+				? {
+						...state.settings,
+						thresholdClose: seconds,
 				  }
 				: null,
 		}));

@@ -45,6 +45,7 @@ export interface Settings {
 	reminderTimes: ReminderTimes;
 	alertThresholds: AlertThresholds;
 	autoControl: AutoControl;
+	thresholdClose: number; // in seconds
 }
 
 // History data types
@@ -76,5 +77,8 @@ export type NotificationMap = Record<string, Notification>;
 export interface LogEntry {
 	event: string;
 	cabinet?: TimeOfDay;
-	timestamp: string;
+}
+
+export interface LogData {
+	[timestamp: string]: LogEntry;
 }

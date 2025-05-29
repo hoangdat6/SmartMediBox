@@ -131,7 +131,8 @@ export function useFirebaseData(): FirebaseDataResult {
 	const toggleFan = async (status: boolean): Promise<boolean> => {
 		try {
 			// Update fan status
-			await updateData("status/fan", status);
+			await updateData("status/onlinefan", status);
+			await updateData("status/offlinefan", status);
 
 			// Update local state immediately for responsiveness
 			setFanStatus(status);
